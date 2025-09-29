@@ -198,5 +198,5 @@ targetSpeed = math.clamp(targetSpeed*1.05,16,maxSpeed)
 currentTarget = getNextTarget()
 player.Character:FindFirstChild("Humanoid").WalkSpeed = targetSpeed
 end
-end
-end
+  end
+   end)
