@@ -1,0 +1,202 @@
+
+writefile("HackLord!.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Hacklord.mp3"))
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local UIS = game:GetService("UserInputService")
+
+local UGCs = {
+{74565924591034, "Head", "MASK", CFrame.new(-0.2, 0, 0.5) * CFrame.Angles(0, math.rad(15), 0)},
+{104159695301556, "Head", "CROWN", CFrame.new(0, -0.7, 0)},
+{137773407236137, "Torso", "COFFIN", CFrame.new(0, 0, -1.5)},
+{109671853459724, "Torso", "VEST", CFrame.new(0, 0.5, -1)},
+{75847829270060, "Torso", "CHAINS", CFrame.new(0, 0, -1)},
+{121290673270759, "Torso", "SWORD", CFrame.new(0, 0.4, -0.6)},
+{84452359312672, "Torso", "VEST2", CFrame.new(0, 0, 0)},
+{138934488961238, "Right Arm", "RIGHT ARM", CFrame.new(0, 0, 0)},
+{110693960146571, "Left Arm", "LEFT ARM", CFrame.new(0, 0, 0)},
+}
+
+local function attachUGC(character, id, targetPart, name, offset)
+local obj = game:GetObjects("rbxassetid://"..id)[1]
+if not obj then return end
+obj.Name = name
+obj.Parent = character
+local mainPart
+for _, v in ipairs(obj:GetDescendants()) do
+if v:IsA("BasePart") then
+mainPart = v
+break
+end
+end
+local charPart = character:FindFirstChild(targetPart)
+if mainPart and charPart then
+mainPart.CFrame = charPart.CFrame * offset
+local weld = Instance.new("Weld")
+weld.Part0 = charPart
+weld.Part1 = mainPart
+weld.C0 = CFrame.new()
+weld.C1 = offset
+weld.Parent = charPart
+end
+end
+
+local function changeFaceTexture(character)
+local head = character:FindFirstChild("Head")
+if not head then return end
+local face = head:FindFirstChildOfClass("Decal")
+if not face then
+face = Instance.new("Decal")
+face.Name = "face"
+face.Face = Enum.NormalId.Front
+face.Parent = head
+end
+face.Texture = "rbxassetid://17104347268"
+end
+
+local function spawnIntroModel(character)
+local model = game:GetObjects("rbxassetid://5554876999")[1]
+model.Parent = workspace
+local hrp = character:WaitForChild("HumanoidRootPart")
+model:PivotTo(hrp.CFrame * CFrame.new(5, 0, 0))
+local highlight = Instance.new("Highlight")
+highlight.Adornee = model
+highlight.FillColor = Color3.new(1,1,1)
+highlight.FillTransparency = 0.5
+highlight.OutlineTransparency = 1
+highlight.Parent = model
+return model
+end
+
+local function runIntro(character)
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("HackLord!.mp3")
+sound.Volume = 1
+sound.Looped = true
+sound.Parent = workspace
+sound:Play()
+local humanoid = character:WaitForChild("Humanoid")
+local oldSpeed = humanoid.WalkSpeed
+humanoid.WalkSpeed = 0
+Lighting.TimeOfDay = "02:00:00"
+Lighting.Brightness = 0
+Lighting.ClockTime = 2
+Lighting.FogEnd = 10000
+Lighting.FogStart = 0
+Lighting.FogColor = Color3.new(0,0,0)
+Lighting.Ambient = Color3.new(0,0,0)
+Lighting.OutdoorAmbient = Color3.new(0,0,0)
+Lighting.GlobalShadows = false
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+local introModel = spawnIntroModel(character)
+task.wait(41)
+if introModel then introModel:Destroy() end
+Lighting.TimeOfDay = "14:00:00"
+Lighting.Brightness = 2
+Lighting.ClockTime = 14
+Lighting.FogEnd = 100000
+Lighting.FogStart = 0
+Lighting.FogColor = Color3.new(1,1,1)
+Lighting.Ambient = Color3.new(1,1,1)
+Lighting.OutdoorAmbient = Color3.new(1,1,1)
+Lighting.GlobalShadows = true
+Lighting.EnvironmentDiffuseScale = 1
+Lighting.EnvironmentSpecularScale = 1
+humanoid.WalkSpeed = oldSpeed
+changeFaceTexture(character)
+for _, data in ipairs(UGCs) do
+attachUGC(character, data[1], data[2], data[3], data[4])
+end
+return sound
+end
+
+local function setupCharacter(char)
+local music = runIntro(char)
+local humanoid = char:WaitForChild("Humanoid")
+humanoid.Died:Connect(function()
+if music and music.IsPlaying then
+music:Stop()
+end
+end)
+end
+
+if player.Character then setupCharacter(player.Character) end
+player.CharacterAdded:Connect(setupCharacter)
+
+local function startWalkFling(char)
+local Root = char:WaitForChild("HumanoidRootPart")
+local Humanoid = char:WaitForChild("Humanoid")
+Humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+Humanoid.BreakJointsOnDeath = false
+RunService.Stepped:Connect(function()
+Humanoid.Health = math.huge
+Humanoid.MaxHealth = math.huge
+end)
+local walkflinging = true
+Root.CanCollide = false
+Humanoid:ChangeState(11)
+spawn(function()
+while walkflinging and Root and Root.Parent do
+RunService.Heartbeat:Wait()
+local vel = Root.Velocity
+Root.Velocity = vel*99999999 + Vector3.new(0,99999999,0)
+RunService.RenderStepped:Wait()
+Root.Velocity = vel
+RunService.Stepped:Wait()
+Root.Velocity = vel + Vector3.new(0,0.1,0)
+end
+end)
+end
+
+if player.Character then startWalkFling(player.Character) end
+player.CharacterAdded:Connect(startWalkFling)
+
+local targetSpeed = 16
+local maxSpeed = 50
+local currentTarget = nil
+local gui = Instance.new("ScreenGui",player:WaitForChild("PlayerGui"))
+local frame = Instance.new("Frame",gui)
+frame.Size = UDim2.new(0,200,0,50)
+frame.Position = UDim2.new(0.5,-100,0,0)
+frame.BackgroundTransparency = 0.5
+frame.BackgroundColor3 = Color3.new(0,0,0)
+local img = Instance.new("ImageLabel",frame)
+img.Size = UDim2.new(0,50,0,50)
+img.Position = UDim2.new(0,0,0,0)
+img.BackgroundTransparency = 1
+local nameLabel = Instance.new("TextLabel",frame)
+nameLabel.Size = UDim2.new(0,150,0,50)
+nameLabel.Position = UDim2.new(0,50,0,0)
+nameLabel.BackgroundTransparency = 1
+nameLabel.TextColor3 = Color3.new(1,1,1)
+nameLabel.Font = Enum.Font.SourceSansBold
+nameLabel.TextScaled = true
+
+local function getNextTarget()
+for _, plr in ipairs(Players:GetPlayers()) do
+if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+return plr
+end
+end
+end
+
+RunService.RenderStepped:Connect(function()
+if not currentTarget or not currentTarget.Character or not currentTarget.Character:FindFirstChild("HumanoidRootPart") then
+currentTarget = getNextTarget()
+end
+if currentTarget then
+local hrp = currentTarget.Character.HumanoidRootPart
+frame.Position = UDim2.new(0.5,-100,0,0)
+img.Image = "https://www.roblox.com/headshot-thumbnail/image?userId="..currentTarget.UserId.."&width=50&height=50&format=png"
+nameLabel.Text = currentTarget.Name
+if (player.Character.HumanoidRootPart.Position - hrp.Position).Magnitude < 5 then
+targetSpeed = math.clamp(targetSpeed*1.05,16,maxSpeed)
+currentTarget = getNextTarget()
+player.Character:FindFirstChild("Humanoid").WalkSpeed = targetSpeed
+end
+end
+end
