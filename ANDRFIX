@@ -1,4 +1,4 @@
-
+writefile("Maxilito.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Maxilito.mp3"))
 
 local playerss = game:GetService("Players").LocalPlayer.Character
 
@@ -1284,7 +1284,7 @@ function attacks:modehandler()
 		songid = 1835555668
 		ws = 20
 		attack = false
-		change(bgm,{SoundId = "rbxassetid://1835555668",Pitch = 1,Looped = true,TimePosition = 0})
+		change(bgm,{SoundId = getcustomasset("Maxilito.mp3"),Pitch = 1,Looped = true,TimePosition = 0})
 	elseif gay == "bye" then
 		attack = true
 		newmode("depressed SKID XD")
@@ -1603,3 +1603,4 @@ end)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	cam =workspace.CurrentCamera
 end)
+
