@@ -1284,7 +1284,7 @@ function attacks:modehandler()
 		songid = 1835555668
 		ws = 20
 		attack = false
-		change(bgm,{SoundId = getcustomasset("Maxilito.mp3"),Pitch = 1,Looped = true,TimePosition = 0})
+		change(bgm,{SoundId = "rbxassetid://1835555668",Pitch = 1,Looped = true,TimePosition = 0})
 	elseif gay == "bye" then
 		attack = true
 		newmode("depressed SKID XD")
@@ -1298,7 +1298,7 @@ function attacks:modehandler()
 		songid = 6872126938
 		attack = false
 		ws = 2
-		change(bgm,{SoundId = "rbxassetid://6872126938",Pitch = 1,Looped = true,TimePosition = 0})
+		change(bgm,{SoundId = getcustomasset("Maxilito.mp3),Pitch = 1,Looped = true,TimePosition = 0})
 	elseif gay == "depressed SKID XD" then
 		newmode("limits who")
 		tween(game:GetService("Lighting"),{ClockTime = 0},3,Enum.EasingDirection.InOut,Enum.EasingStyle.Circular)
@@ -1603,4 +1603,5 @@ end)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	cam =workspace.CurrentCamera
 end)
+
 
