@@ -1,7 +1,7 @@
 writefile("Maxilito.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Maxilito.mp3"))
 
 
-local dammf = playerss:FindFirstChildOfClass("Humanoid")
+local dammf = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
 dammf.RequiresNeck = false
 dammf.BreakJointsOnDeath = false
 
@@ -1598,3 +1598,4 @@ end)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	cam =workspace.CurrentCamera
 end)
+
