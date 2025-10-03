@@ -118,7 +118,7 @@ local function playVoiceline(soundNames)
     end
     local sound = Instance.new("Sound")
     sound.SoundId = getcustomasset(soundName)
-    sound.Volume = 1.5
+    sound.Volume = 10
     sound.Parent = workspace
     sound:Play()
     sound.Ended:Connect(function()
