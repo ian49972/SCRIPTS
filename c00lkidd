@@ -37,7 +37,7 @@ local background = Instance.new("ImageLabel")
 background.Size = UDim2.new(0.4, 0, 0.3, 0)
 background.Position = UDim2.new(0.3, 0, 0.35, 0)
 background.BackgroundTransparency = 1
-background.Image = "rbxassetid://94222413183599"
+background.Image = "rbxassetid://0"
 background.Parent = selectGui
 
 local chooseLabel = Instance.new("TextLabel")
@@ -83,6 +83,50 @@ while useRig == nil do
     task.wait()
 end
 
+local subtitlesGui = Instance.new("ScreenGui")
+subtitlesGui.Name = "SubtitlesGui"
+subtitlesGui.ResetOnSpawn = false
+subtitlesGui.Parent = PlayerGui
+
+local subtitlesFrame = Instance.new("Frame")
+subtitlesFrame.Size = UDim2.new(0.6, 0, 0.15, 0)
+subtitlesFrame.Position = UDim2.new(0.2, 0, 0.65, 0)
+subtitlesFrame.BackgroundTransparency = 0.5
+subtitlesFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+subtitlesFrame.Parent = subtitlesGui
+
+local headImage = Instance.new("ImageLabel")
+headImage.Size = UDim2.new(0.1, 0, 0.5, 0)
+headImage.Position = UDim2.new(0.45, 0, -0.5, 0)
+headImage.BackgroundTransparency = 1
+headImage.Image = useRig and "rbxassetid://98247433040220" or "rbxassetid://7361452666"
+headImage.Parent = subtitlesFrame
+
+local subtitlesLabel = Instance.new("TextLabel")
+subtitlesLabel.Size = UDim2.new(1, 0, 0.8, 0)
+subtitlesLabel.Position = UDim2.new(0, 0, 0.1, 0)
+subtitlesLabel.BackgroundTransparency = 1
+subtitlesLabel.Text = ""
+subtitlesLabel.TextColor3 = Color3.new(1, 1, 1)
+subtitlesLabel.TextScaled = true
+subtitlesLabel.Font = Enum.Font.GothamBold
+subtitlesLabel.RichText = false -- Disable rich text to avoid formatting issues
+subtitlesLabel.Parent = subtitlesFrame
+
+local function showSubtitles(text)
+    subtitlesLabel.Text = ""
+    local displayText = ""
+
+    for i = 1, #text do
+        displayText = displayText .. text:sub(i, i)
+        subtitlesLabel.Text = displayText
+        task.wait(0.05)
+    end
+
+    task.wait(2)
+    subtitlesLabel.Text = ""
+end
+
 local gui = Instance.new("ScreenGui")        
 gui.Name = "SimpleFadeGui"        
 gui.ResetOnSpawn = false        
@@ -95,7 +139,7 @@ textLabel.BackgroundTransparency = 1
 textLabel.TextScaled = true        
 textLabel.Font = Enum.Font.GothamBold        
 textLabel.TextColor3 = Color3.new(1, 1, 1)        
-textLabel.Text = "Made by ban_thid or just Rob_SB4.... Hi @c00lkid1234"        
+textLabel.Text = "Made by ban_thid or just Rob_SB4"        
 textLabel.Parent = gui        
 
 for i = 1, 30 do        
@@ -109,6 +153,27 @@ gui:Destroy()
 local animateScript = character:FindFirstChild("Animate")
 if animateScript then animateScript:Destroy() end
 
+local voicelineSubtitles = {
+    ["Corrupt.mp3"] = "You're NEVER getting away!",
+    ["Corrupt2.mp3"] = "HAHAHAHA!",
+    ["Walkspeed1.mp3"] = "FOUND YOU!",
+    ["Walkspeed2.mp3"] = "HERE I COME!",
+    ["Walkmiss.mp3"] = "You're only delaying the inevitable. HAHAHA... HAAAAAAAA!!!",
+    ["Delivery.mp3"] = "They think they can HIDE from me! Hahahaha",
+    ["kill1.mp3"] = "You're nobody special, you'll burn alive just like the rest of them! HAHAHAHAAAA!",
+    ["kill2.mp3"] = "Hardly even worth my time.",
+    ["kill3.mp3"] = "You're NOTHING to me!",
+    ["kill4.mp3"] = "NOTHING but FILTH!",
+    ["kill5.mp3"] = "Your strength may be adaquate, but your withs are LACKING. *giggle*",
+    ["kill6.mp3"] = "We should play sometime! *giggle*",
+    ["kill7.mp3"] = "You'll always be face to face WITH ME! HAHAHAHAHAAAA!",
+    ["kill8.mp3"] = "Look at where GLUTTONY gets YOU. HAHAHAHAHAHAHAAAAA!!!",
+    ["WalkspeedHit.mp3"] = "NO ESCAPE!! HAHAHAHAHAAAA!!!",
+    ["idle1.mp3"] = "Placeholder",
+    ["idle2.mp3"] = "Placeholder",
+    ["idle3.mp3"] = "Placeholder"
+}
+
 local function playVoiceline(soundNames)
     local soundName
     if type(soundNames) == "table" then
@@ -121,6 +186,9 @@ local function playVoiceline(soundNames)
     sound.Volume = 10
     sound.Parent = workspace
     sound:Play()
+    task.spawn(function()
+        showSubtitles(voicelineSubtitles[soundName] or "")
+    end)
     sound.Ended:Connect(function()
         sound:Destroy()
     end)
@@ -148,8 +216,8 @@ function CloneMe(char)
 end
 
 local function createBot()
-    local bot = Players:CreateHumanoidModelFromUserId(8644215086)
-    bot.Name = "c00lkid1243"
+    local bot = Players:CreateHumanoidModelFromUserId(8466354939)
+    bot.Name = "Minion"
     bot.Parent = workspace
     if not bot:FindFirstChild("HumanoidRootPart") then
         local hrp = Instance.new("Part")
@@ -792,6 +860,9 @@ humanoid.Died:Connect(function()
     end
     if screenGui then
         screenGui:Destroy()
+    end
+    if subtitlesGui then
+        subtitlesGui:Destroy()
     end
     local animator = humanoid:FindFirstChildOfClass("Animator")
     if animator and not animator.Parent then
