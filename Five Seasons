@@ -1,0 +1,607 @@
+writefile("KJ.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/KJ.mp3"))
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local head = character:WaitForChild("Head")
+
+local resourcesFolder = ReplicatedStorage:FindFirstChild("Resources")
+if not resourcesFolder then
+    resourcesFolder = Instance.new("Folder")
+    resourcesFolder.Name = "Resources"
+    resourcesFolder.Parent = ReplicatedStorage
+end
+
+local function findAndCloneSeasonsStructure(model, targetParent)
+    local function recursiveSearch(parent, pathSoFar)
+        for _, child in pairs(parent:GetChildren()) do
+            local currentPath = pathSoFar .. "." .. child.Name
+            if child.Name:lower() == "seasons" then
+                local clonedSeasons = child:Clone()
+                clonedSeasons.Name = "FiveSeasonsFX"
+                clonedSeasons.Parent = targetParent
+                print("Found and cloned FiveSeasonsFX at path: " .. currentPath)
+                
+                local fxUi = clonedSeasons:FindFirstChild("FXUi", true)
+                if fxUi and fxUi:IsA("ScreenGui") then
+                    fxUi.Parent = PlayerGui
+                    print("Moved FXUi to PlayerGui")
+                end
+                
+                return true
+            elseif child:IsA("Folder") or child:IsA("Model") then
+                if recursiveSearch(child, currentPath) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+    
+    recursiveSearch(model, model.Name)
+    
+    local preloader = model:FindFirstChild("ReplicatedFirst", true):FindFirstChild("Preloader", true)
+    if preloader then
+        local innerResources = preloader:FindFirstChild("Resources", true)
+        if innerResources and not targetParent:FindFirstChild("FiveSeasonsFX") then
+            local seasons = innerResources:FindFirstChild("Seasons", true)
+            if seasons then
+                local cloned = seasons:Clone()
+                cloned.Name = "FiveSeasonsFX"
+                cloned.Parent = targetParent
+                print("Fallback cloned FiveSeasonsFX from inner Resources")
+                
+                local fxUi = cloned:FindFirstChild("FXUi", true)
+                if fxUi and fxUi:IsA("ScreenGui") then
+                    fxUi.Parent = PlayerGui
+                    print("Moved FXUi to PlayerGui (fallback)")
+                end
+            else
+                local clonedResources = innerResources:Clone()
+                clonedResources.Name = "FiveSeasonsFX"
+                clonedResources.Parent = targetParent
+                print("Fallback: Cloned entire inner Resources as FiveSeasonsFX")
+                
+                local fxUi = clonedResources:FindFirstChild("FXUi", true)
+                if fxUi and fxUi:IsA("ScreenGui") then
+                    fxUi.Parent = PlayerGui
+                    print("Moved FXUi to PlayerGui (resources fallback)")
+                end
+            end
+        end
+    end
+end
+
+local fxModel = game:GetObjects("rbxassetid://115027463082534")[1]
+fxModel.Parent = Workspace
+fxModel:PivotTo(character:GetPivot())
+
+findAndCloneSeasonsStructure(fxModel, resourcesFolder)
+fxModel:Destroy()
+
+local animModel = game:GetObjects("rbxassetid://90416990661717")[1]
+animModel.Parent = Workspace
+animModel:PivotTo(character:GetPivot())
+
+local animSaves = animModel:FindFirstChild("AnimSaves")
+if animSaves then
+    local startupKeyframe = animSaves:FindFirstChild("startup")
+    if startupKeyframe and startupKeyframe:IsA("KeyframeSequence") then
+        startupKeyframe.Parent = resourcesFolder
+    end
+    
+    local readyKeyframe = animSaves:FindFirstChild("ready")
+    if readyKeyframe and readyKeyframe:IsA("KeyframeSequence") then
+        readyKeyframe.Parent = resourcesFolder
+    end
+end
+animModel:Destroy()
+
+local tStyle, tDirection = {
+    [Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear;
+    [Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce;
+    [Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic;
+    [Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic;
+    [Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear;
+}, {
+    [Enum.PoseEasingDirection.In] = Enum.EasingDirection.In;
+    [Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out;
+    [Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut;
+}
+
+local function PlayKeyframeSequenceOnce(model, keyframeSequence, speedMult)
+    speedMult = speedMult or 1
+    local allKeyFrames = {}
+    
+    for i, keyframe in pairs(keyframeSequence:GetKeyframes()) do
+        table.insert(allKeyFrames, {
+            Time = keyframe.Time / speedMult,
+            Keyframe = keyframe
+        })
+    end
+    table.sort(allKeyFrames, function(a, b)
+        return a.Time < b.Time
+    end)
+    
+    local tweens = {}
+    local motors = {}
+    local motorValues = {}
+    local keyFramePoses = {}
+    
+    local function GetMotorFromPose(pose, keyframe)
+        local fullName = pose:GetFullName()
+        local path = string.split(fullName, ".")
+        local kfPosition = table.find(path, keyframe.Keyframe.Name)
+        
+        for i, v in pairs(model:GetDescendants()) do
+            if v:IsA("Motor6D") and v.Part1.Name == pose.Name and v.Part0.Name == pose.Parent.Name then
+                return v
+            end
+        end
+        return nil
+    end
+    
+    for i, keyframeData in pairs(allKeyFrames) do
+        for x, pose in pairs(keyframeData.Keyframe:GetDescendants()) do
+            if pose:IsA("Pose") and pose.Weight > 0 then
+                local motor6D = motors[pose.Name] or GetMotorFromPose(pose, keyframeData)
+                if not keyFramePoses[i] then
+                    keyFramePoses[i] = {
+                        Time = keyframeData.Time,
+                        Poses = {}
+                    }
+                end
+                if not motors[pose.Name] then
+                    motors[pose.Name] = motor6D
+                end
+                if not motorValues[pose.Name] then
+                    local motorVal = Instance.new("CFrameValue")
+                    motorVal.Name = "MotorValue"
+                    motorVal.Parent = motors[pose.Name]
+                    motorValues[pose.Name] = motorVal
+                end
+                
+                if motor6D then
+                    keyFramePoses[i].Poses[pose.Name] = {Motor6D = motor6D, Pose = pose}
+                end
+            end
+        end
+    end
+    
+    if #keyFramePoses - 1 > 0 then
+        local lastPose = {}
+        for i = 1, #keyFramePoses - 1 do
+            local kf1, kf2 = keyFramePoses[i], keyFramePoses[i + 1]
+            local t = kf2.Time - kf1.Time
+            
+            tweens[i] = {
+                Time = t,
+                Tweens = {}
+            }
+            for name, data in pairs(kf1.Poses) do
+                lastPose[name] = data
+            end
+            for name, data in pairs(kf2.Poses) do
+                local tweenInfo = TweenInfo.new(
+                    math.abs(lastPose[name].Pose:FindFirstAncestorOfClass("Keyframe").Time - kf2.Time) / speedMult,
+                    tStyle[lastPose[name].Pose.EasingStyle],
+                    tDirection[lastPose[name].Pose.EasingDirection]
+                )
+                tweens[i].Tweens[name] = TweenService:Create(motorValues[name], tweenInfo, {Value = data.Pose.CFrame})
+            end
+        end
+    end
+    
+    local animLength = allKeyFrames[#allKeyFrames] and allKeyFrames[#allKeyFrames].Time or 5
+    
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        for i, v in pairs(motors) do
+            if motorValues[i] then
+                v.Transform = motorValues[i].Value
+            end
+        end
+    end)
+    
+    spawn(function()
+        for i, v in pairs(tweens) do
+            for x, tween in pairs(v.Tweens) do
+                tween:Play()
+            end
+            task.wait(v.Time)
+        end
+        connection:Disconnect()
+        for _, motorVal in pairs(motorValues) do
+            if motorVal then
+                motorVal:Destroy()
+            end
+        end
+    end)
+    
+    return {
+        connection = connection,
+        motorValues = motorValues,
+        length = animLength
+    }
+end
+
+local function enableParticlesInAttachment(attachment)
+    for _, child in ipairs(attachment:GetChildren()) do
+        if child:IsA("ParticleEmitter") then
+            child.Enabled = true
+        elseif child:IsA("Attachment") then
+            enableParticlesInAttachment(child)
+        end
+    end
+end
+
+local function timedAttachment(parentPart, attachmentSource, duration)
+    local clonedAttachment = attachmentSource:Clone()
+    clonedAttachment.Parent = parentPart
+    enableParticlesInAttachment(clonedAttachment)
+    task.wait(duration)
+    if clonedAttachment and clonedAttachment.Parent then
+        clonedAttachment:Destroy()
+    end
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "Five Seasons"
+tool.RequiresHandle = false
+tool.Parent = player.Backpack
+
+tool.Activated:Connect(function()
+    if not character or not character.Parent then return end
+    character = player.Character
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    head = character:WaitForChild("Head")
+    
+    local startupKeyframe = resourcesFolder:FindFirstChild("startup")
+    local readyKeyframe = resourcesFolder:FindFirstChild("ready")
+    if not startupKeyframe or not readyKeyframe then return end
+    
+    local readyLength = 0
+    for _, kf in pairs(readyKeyframe:GetKeyframes()) do
+        readyLength = math.max(readyLength, kf.Time)
+    end
+    
+    local customSound = Instance.new("Sound")
+    customSound.SoundId = getcustomasset("KJ.mp3")
+    customSound.Volume = 1
+    customSound.Parent = Workspace
+    customSound.Looped = false
+    customSound:Play()
+    
+    -- Anchor root part
+    rootPart.Anchored = true
+    
+    local animator = humanoid:FindFirstChild("Animator")
+    if animator then
+        animator:Destroy()
+    end
+    
+    local startupStuff = PlayKeyframeSequenceOnce(character, startupKeyframe, 1)
+    
+    local camera = Workspace.CurrentCamera
+    local originalSubject = camera.CameraSubject
+    local originalCameraType = camera.CameraType
+    camera.CameraSubject = head
+    camera.CameraType = Enum.CameraType.Custom
+   
+    spawn(function()
+        task.wait(12)
+        
+        local torso = character:FindFirstChild("Torso") or rootPart
+        local savedCFrame = torso.CFrame
+        
+        if startupStuff.connection then
+            startupStuff.connection:Disconnect()
+        end
+        for _, mv in pairs(startupStuff.motorValues) do
+            if mv then
+                mv:Destroy()
+            end
+        end
+        
+        rootPart.CFrame = savedCFrame
+        
+        local readyStuff = PlayKeyframeSequenceOnce(character, readyKeyframe, 1)
+        
+        spawn(function()
+            local fxUi = PlayerGui:FindFirstChild("FXUi")
+            local fiveSeasonsFX = resourcesFolder:FindFirstChild("FiveSeasonsFX")
+            local finalExplosion
+            if fiveSeasonsFX then
+                local season = fiveSeasonsFX:FindFirstChild("Season", true)
+                if season then
+                    finalExplosion = season:FindFirstChild("FinalExplosion")
+                end
+            end
+            
+            if fxUi then
+                task.wait(4)
+                
+                local fiveSeasons = fxUi:FindFirstChild("FiveSeasons")
+                if fiveSeasons and fiveSeasons:IsA("ImageLabel") then
+                    fiveSeasons.Visible = true
+                    task.wait(1)
+                    fiveSeasons.Visible = false
+                end
+                
+                task.wait(1)
+                
+                local impactFrames = fxUi:FindFirstChild("ImpactFrames")
+                if impactFrames then
+                    for i = 1, 40 do
+                        local frame = impactFrames:FindFirstChild(tostring(i))
+                        if frame and frame:IsA("ImageLabel") then
+                            frame.Visible = true
+                            task.wait(0.05) 
+                            frame.Visible = false
+                        end
+                    end
+                end
+                
+                if finalExplosion then
+                    local clonedExplosion = finalExplosion:Clone()
+                    clonedExplosion.Parent = rootPart
+                    clonedExplosion:PivotTo(rootPart:GetPivot())
+                    
+                    local main1 = clonedExplosion:FindFirstChild("Main1")
+                    if main1 then
+                        for _, descendant in ipairs(main1:GetDescendants()) do
+                            if descendant:IsA("ParticleEmitter") then
+                                descendant.Enabled = true
+                            elseif descendant:IsA("Attachment") then
+                                enableParticlesInAttachment(descendant)
+                            end
+                        end
+                    end
+                    
+                    task.wait(2)
+                    if clonedExplosion and clonedExplosion.Parent then
+                        clonedExplosion:Destroy()
+                    end
+                end
+            end
+        end)
+        
+        spawn(function()
+            task.wait(2)
+            local fiveSeasonsFX = resourcesFolder:FindFirstChild("FiveSeasonsFX")
+            local charFX
+            if fiveSeasonsFX then
+                charFX = fiveSeasonsFX:FindFirstChild("CharFX")
+                if not charFX then
+                    charFX = fiveSeasonsFX:FindFirstChild("CharFX", true)
+                end
+            end
+            local leftArm = character:FindFirstChild("Left Arm") or character:FindFirstChild("LeftUpperArm")
+            if charFX and leftArm then
+                local finalArmFX = charFX:FindFirstChild("FinalArmFXMirrored", true)
+                if finalArmFX then
+                    local clonedFinal = finalArmFX:Clone()
+                    clonedFinal.Parent = leftArm
+                    enableParticlesInAttachment(clonedFinal)
+                    task.wait(2)
+                    if clonedFinal and clonedFinal.Parent then
+                        clonedFinal:Destroy()
+                    end
+                end
+            end
+        end)
+        
+        task.wait(readyLength + 1)
+        
+        if readyStuff.connection then
+            readyStuff.connection:Disconnect()
+        end
+        for _, mv in pairs(readyStuff.motorValues) do
+            if mv then
+                mv:Destroy()
+            end
+        end
+        
+        camera.CameraSubject = originalSubject
+        camera.CameraType = originalCameraType
+        
+        local newAnimator = Instance.new("Animator")
+        newAnimator.Parent = humanoid
+        
+        local currentRoot = character:FindFirstChild("HumanoidRootPart")
+        if currentRoot then
+            currentRoot.Anchored = false
+        end
+        
+        if customSound and customSound.Parent then
+            customSound:Destroy()
+        end
+    end)
+    
+    spawn(function()
+        task.wait(0.2)
+        
+        local fiveSeasonsFX = resourcesFolder:FindFirstChild("FiveSeasonsFX")
+        local charFX
+        local leftArm = character:FindFirstChild("Left Arm") or character:FindFirstChild("LeftUpperArm")
+        local torso = character:FindFirstChild("Torso") or rootPart
+        if fiveSeasonsFX then
+            charFX = fiveSeasonsFX:FindFirstChild("CharFX")
+            if not charFX then
+                charFX = fiveSeasonsFX:FindFirstChild("CharFX", true)
+                if charFX then
+                    charFX = charFX:Clone()
+                    charFX.Parent = fiveSeasonsFX
+                end
+            end
+            
+            if charFX then
+                local particleEffect = charFX:FindFirstChild("HeatUp")
+                if not particleEffect then
+                    particleEffect = charFX:FindFirstChild("HeatUp", true)
+                end
+                if particleEffect then
+                    local clonedEffect = particleEffect:Clone()
+                    clonedEffect.Parent = rootPart
+                    for _, child in ipairs(clonedEffect:GetChildren()) do
+                        if child:IsA("ParticleEmitter") then
+                            child:Emit(1)
+                        end
+                    end
+                end
+                
+                local particleEffect2 = charFX:FindFirstChild("WindupGlow")
+                if not particleEffect2 then
+                    particleEffect2 = charFX:FindFirstChild("WindupGlow", true)
+                end
+                if particleEffect2 and leftArm then
+                    local clonedEffect2 = particleEffect2:Clone()
+                    clonedEffect2.Parent = leftArm
+                    for _, child in ipairs(clonedEffect2:GetChildren()) do
+                        if child:IsA("ParticleEmitter") then
+                            child:Emit(1)
+                        end
+                    end
+                end
+                
+                spawn(function()
+                    task.wait(1)
+                    local beamFX = charFX:FindFirstChild("BeamFX")
+                    if not beamFX then
+                        beamFX = charFX:FindFirstChild("BeamFX", true)
+                    end
+                    if beamFX then
+                        timedAttachment(torso, beamFX, 2.5)
+                    end
+                end)
+            end
+            
+            task.wait(1.1)
+            local jumpFXModel = fiveSeasonsFX:FindFirstChild("JumpFX")
+            if not jumpFXModel then
+                jumpFXModel = fiveSeasonsFX:FindFirstChild("JumpFX", true)
+                if jumpFXModel then
+                    jumpFXModel = jumpFXModel:Clone()
+                    jumpFXModel.Parent = fiveSeasonsFX
+                end
+            end
+            if jumpFXModel then
+                local jumpFXPart = jumpFXModel:FindFirstChild("JumpFX")
+                if not jumpFXPart then
+                    jumpFXPart = jumpFXModel:FindFirstChild("JumpFX", true)
+                end
+                if jumpFXPart then
+                    local clonedJumpFX = jumpFXPart:Clone()
+                    clonedJumpFX.Parent = Workspace
+                    
+                    local function emitParticles(instance)
+                        for _, child in ipairs(instance:GetDescendants()) do
+                            if child:IsA("ParticleEmitter") then
+                                child.Enabled = true
+                                child:Emit(1)
+                                child.Enabled = false
+                            end
+                        end
+                    end
+                    
+                    local function positionOnFloor(part)
+                        local torso = character:FindFirstChild("Torso") or rootPart
+                        local torsoPosition = torso.Position
+                        local rayOrigin = torsoPosition + Vector3.new(0, 10, 0)
+                        local rayDirection = Vector3.new(0, -20, 0)
+                        local raycastResult = Workspace:Raycast(rayOrigin, rayDirection)
+                        
+                        if raycastResult then
+                            part.Position = raycastResult.Position - Vector3.new(0, 0.9, 0)
+                        end
+                    end
+                    
+                    emitParticles(clonedJumpFX)
+                    positionOnFloor(clonedJumpFX)
+                end
+            end
+            
+            task.wait(2.4)
+            task.wait(0.6)
+            if charFX and leftArm then
+                local armBurst = charFX:FindFirstChild("ArmBurst")
+                if not armBurst then
+                    armBurst = charFX:FindFirstChild("ArmBurst", true)
+                    if armBurst then
+                        armBurst = armBurst:Clone()
+                        armBurst.Parent = charFX
+                    end
+                end
+                if armBurst then
+                    local attachment = armBurst:FindFirstChild("Attachment")
+                    if attachment then
+                        local armBurstAttachment = attachment:Clone()
+                        armBurstAttachment.Parent = leftArm
+                        for _, child in ipairs(armBurstAttachment:GetChildren()) do
+                            if child:IsA("ParticleEmitter") then
+                                child:Emit(5)
+                            end
+                        end
+                    end
+                    
+                    local aPart = armBurst:FindFirstChild("a")
+                    if aPart then
+                        local armBursta = aPart:Clone()
+                        armBursta.Parent = leftArm
+                        for _, child in ipairs(armBursta:GetChildren()) do
+                            if child:IsA("ParticleEmitter") then
+                                child:Emit(5)
+                            end
+                        end
+                    end
+                    
+                    local armEnabled = charFX:FindFirstChild("ArmEnabled")
+                    if not armEnabled then
+                        armEnabled = charFX:FindFirstChild("ArmEnabled", true)
+                    end
+                    if armEnabled then
+                        spawn(function()
+                            timedAttachment(leftArm, armEnabled, 2.7)
+                        end)
+                    end
+                    
+                    task.wait(2.7)
+                    local armFX = charFX:FindFirstChild("ArmFX")
+                    if not armFX then
+                        armFX = charFX:FindFirstChild("ArmFX", true)
+                    end
+                    if armFX then
+                        spawn(function()
+                            timedAttachment(leftArm, armFX, 2)
+                        end)
+                    end
+                    
+                    local eyeEmit = charFX:FindFirstChild("EyeEmit")
+                    if not eyeEmit then
+                        eyeEmit = charFX:FindFirstChild("EyeEmit", true)
+                    end
+                    if eyeEmit and head then
+                        spawn(function()
+                            local clonedEyeEmit = eyeEmit:Clone()
+                            clonedEyeEmit.Parent = head
+                            enableParticlesInAttachment(clonedEyeEmit)
+                            task.wait(2)
+                            if clonedEyeEmit and clonedEyeEmit.Parent then
+                                clonedEyeEmit:Destroy()
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+end)
