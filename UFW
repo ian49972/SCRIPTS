@@ -1,3 +1,5 @@
+-- Made by ban_thid or Rob_SB4 [i think this looks bad but i just released it ;)]
+
 writefile("KJ21.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/KJ21.mp3"))
 
 local TS = game:GetService("TweenService")
@@ -5,6 +7,9 @@ local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 local TextService = game:GetService("TextService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local tool = Instance.new("Tool")
@@ -13,11 +18,11 @@ tool.RequiresHandle = false
 tool.Parent = LocalPlayer.Backpack
 
 local dialogueModel = game:GetObjects("rbxassetid://74714833540240")[1]
-dialogueModel.Parent = game.Workspace
+dialogueModel.Parent = Workspace
 
 local animModel = game:GetObjects("rbxassetid://108921694205594")[1]
-animModel.Parent = game.Workspace
-animModel:PivotTo(LocalPlayer.Character:GetPivot())
+animModel.Parent = Workspace
+animModel:PivotTo(LocalPlayer.Character and LocalPlayer.Character:GetPivot() or CFrame.new())
 
 local keyframeSequence = animModel.AnimSaves:FindFirstChild("Unlimited Flex Works ")
 if not keyframeSequence then
@@ -27,8 +32,392 @@ end
 
 local ServerStorage = game:GetService("ServerStorage")
 keyframeSequence.Parent = ServerStorage
-
 animModel:Destroy()
+
+local Object = game:GetObjects("rbxassetid://131871998323979")[1]
+Object.Parent = Workspace
+
+local vfxFolder = Object:FindFirstChild("vfx")
+if not vfxFolder then
+    warn("VFX folder not found in model")
+    return
+end
+
+local vfxComponents = {
+    "ThingStart",
+    "ThingMiddle",
+    "ThingEnd",
+    "Space",
+    "Space1",
+    "UFWSkyroom"
+}
+
+local vfxStorage = Instance.new("Folder")
+vfxStorage.Name = "UnlimitedFlexWorksVFX"
+vfxStorage.Parent = ReplicatedStorage
+
+local impactFramesGui = Object:FindFirstChild("ImpactFrames")
+if impactFramesGui and impactFramesGui:IsA("ScreenGui") then
+    impactFramesGui.Parent = vfxStorage
+    print("ImpactFrames GUI stored in ReplicatedStorage")
+else
+    warn("ImpactFrames GUI not found in VFX model")
+end
+
+for _, vfxName in ipairs(vfxComponents) do
+    local vfx = vfxFolder:FindFirstChild(vfxName)
+    if vfx then
+        vfx.Parent = vfxStorage
+        local parts, meshParts, decals, particles, specialMeshes = 0, 0, 0, 0, 0
+        for _, obj in ipairs(vfx:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                parts += 1
+                obj.CanCollide = false
+                obj.Anchored = true
+                obj.Transparency = 1
+            elseif obj:IsA("MeshPart") then
+                meshParts += 1
+                obj.CanCollide = false
+                obj.Anchored = true
+                obj.RenderFidelity = Enum.RenderFidelity.Precise
+                obj.DoubleSided = true
+                obj.Transparency = 1
+            elseif obj:IsA("SpecialMesh") then
+                specialMeshes += 1
+            elseif obj:IsA("Decal") then
+                decals += 1
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") then
+                particles += 1
+                obj.Enabled = false
+            end
+        end
+        if vfxName == "UFWSkyroom" then
+            if vfx:IsA("MeshPart") then
+                vfx.Color = Color3.fromRGB(255, 105, 180)
+                vfx.Material = Enum.Material.Neon
+                vfx.Transparency = 0
+                print("UFWSkyroom is a MeshPart, set to pink")
+            elseif vfx:IsA("BasePart") and vfx:FindFirstChildWhichIsA("SpecialMesh") then
+                vfx.Color = Color3.fromRGB(255, 105, 180)
+                vfx.Material = Enum.Material.Neon
+                vfx.Transparency = 0
+                local specialMesh = vfx:FindFirstChildWhichIsA("SpecialMesh")
+                specialMesh.VertexColor = Vector3.new(1, 0.412, 0.706)
+                print("UFWSkyroom is a BasePart with SpecialMesh, set to pink")
+            else
+                warn("UFWSkyroom is not a MeshPart or BasePart with SpecialMesh")
+            end
+        end
+        print("VFX " .. vfxName .. " contents: " .. parts .. " parts, " .. meshParts .. " meshParts, " .. specialMeshes .. " specialMeshes, " .. decals .. " decals, " .. particles .. " particle effects")
+        if vfx:IsA("Model") and not vfx.PrimaryPart then
+            local centralPart
+            for _, part in ipairs(vfx:GetDescendants()) do
+                if (part:IsA("BasePart") or part:IsA("MeshPart")) and part.Name ~= "GrayBlock" then
+                    centralPart = part
+                    vfx.PrimaryPart = part
+                    break
+                end
+            end
+            if not centralPart then
+                warn("No valid part found to set as PrimaryPart for VFX: " .. vfxName)
+            else
+                print("Set PrimaryPart for " .. vfxName .. " to: " .. centralPart.Name)
+            end
+        end
+    else
+        warn("VFX component not found: " .. vfxName)
+    end
+end
+
+Object:Destroy()
+
+local function transitionMeshes(thingStart, thingMiddle, thingEnd, duration)
+    if not (thingStart and thingMiddle and thingEnd) then
+        warn("Missing one or more VFX for transition: ThingStart=" .. tostring(thingStart) .. ", ThingMiddle=" .. tostring(thingMiddle) .. ", ThingEnd=" .. tostring(thingEnd))
+        return
+    end
+
+    local startMeshes, middleMeshes, endMeshes = {}, {}, {}
+    for _, obj in ipairs(thingStart:GetDescendants()) do
+        if (obj:IsA("MeshPart") or (obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh"))) and obj.Name ~= "GrayBlock" then
+            table.insert(startMeshes, obj)
+        end
+    end
+    for _, obj in ipairs(thingMiddle:GetDescendants()) do
+        if (obj:IsA("MeshPart") or (obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh"))) and obj.Name ~= "GrayBlock" then
+            table.insert(middleMeshes, obj)
+        end
+    end
+    for _, obj in ipairs(thingEnd:GetDescendants()) do
+        if (obj:IsA("MeshPart") or (obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh"))) and obj.Name ~= "GrayBlock" then
+            table.insert(endMeshes, obj)
+        end
+    end
+
+    print("ThingStart meshes: " .. #startMeshes .. ", ThingMiddle meshes: " .. #middleMeshes .. ", ThingEnd meshes: " .. #endMeshes)
+
+    if #startMeshes ~= #middleMeshes or #middleMeshes ~= #endMeshes then
+        warn("Mesh count mismatch: ThingStart=" .. #startMeshes .. ", ThingMiddle=" .. #middleMeshes .. ", ThingEnd=" .. #endMeshes)
+        return
+    end
+    if #startMeshes == 0 then
+        warn("No valid meshes found")
+        return
+    end
+
+    local meshCount = #startMeshes
+    local phaseDuration = duration / 2
+    local tweenDuration = phaseDuration / meshCount
+    local tweenInfo = TweenInfo.new(tweenDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+    for i = 1, meshCount do
+        local startMesh = startMeshes[i]
+        local middleMesh = middleMeshes[i]
+        if startMesh and middleMesh then
+            local startTween = TS:Create(startMesh, tweenInfo, {Transparency = 1})
+            local middleTween = TS:Create(middleMesh, tweenInfo, {Transparency = 0})
+            local scaleTween = TS:Create(middleMesh, tweenInfo, {Size = middleMesh.Size * 1.1})
+            local wobbleTween = TS:Create(middleMesh, TweenInfo.new(tweenDuration / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {CFrame = middleMesh.CFrame * CFrame.new(0, 0.5, 0)})
+            task.delay((i - 1) * tweenDuration * 0.5, function() -- 50% overlap for smoothness
+                print("Fading out ThingStart mesh " .. startMesh.Name .. ", fading in ThingMiddle mesh " .. middleMesh.Name)
+                startTween:Play()
+                middleTween:Play()
+                scaleTween:Play()
+                wobbleTween:Play()
+            end)
+        end
+    end
+
+    task.delay(phaseDuration, function()
+        local allVisible = true
+        for _, mesh in ipairs(middleMeshes) do
+            if mesh.Transparency > 0 then
+                allVisible = false
+                break
+            end
+        end
+        if allVisible then
+            print("ThingMiddle fully visible, starting Phase 2")
+            for i = 1, meshCount do
+                local middleMesh = middleMeshes[i]
+                local endMesh = endMeshes[i]
+                if middleMesh and endMesh then
+                    local middleTween = TS:Create(middleMesh, tweenInfo, {Transparency = 1})
+                    local endTween = TS:Create(endMesh, tweenInfo, {Transparency = 0})
+                    local scaleTween = TS:Create(endMesh, tweenInfo, {Size = endMesh.Size * 1.1})
+                    local wobbleTween = TS:Create(endMesh, TweenInfo.new(tweenDuration / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {CFrame = endMesh.CFrame * CFrame.new(0, 0.5, 0)})
+                    task.delay((i - 1) * tweenDuration * 0.5, function()
+                        print("Fading out ThingMiddle mesh " .. middleMesh.Name .. ", fading in ThingEnd mesh " .. endMesh.Name)
+                        middleTween:Play()
+                        endTween:Play()
+                        scaleTween:Play()
+                        wobbleTween:Play()
+                    end)
+                end
+            end
+        else
+            warn("ThingMiddle not fully visible, delaying Phase 2")
+        end
+    end)
+end
+
+local function teleportToCamera(vfx, duration, useFOVTween, fovMax)
+    if not vfx or not LocalPlayer.Character or not Workspace.CurrentCamera then
+        warn("Cannot teleport VFX: " .. vfx.Name .. " - Missing character or camera")
+        return nil
+    end
+
+    local vfxClone = vfx:Clone()
+    vfxClone.Name = vfx.Name .. "_Clone"
+    vfxClone.Parent = Workspace
+
+    local primaryPart
+    if vfxClone:IsA("Model") then
+        primaryPart = vfxClone.PrimaryPart
+        if not primaryPart then
+            for _, part in ipairs(vfxClone:GetDescendants()) do
+                if (part:IsA("BasePart") or part:IsA("MeshPart")) and part.Name ~= "GrayBlock" then
+                    primaryPart = part
+                    vfxClone.PrimaryPart = part
+                    break
+                end
+            end
+        end
+        if not primaryPart then
+            warn("No valid primary part found for VFX model: " .. vfxClone.Name)
+            vfxClone:Destroy()
+            return nil
+        end
+    else
+        primaryPart = vfxClone
+    end
+
+    for _, obj in ipairs(vfxClone:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") then
+            obj.Enabled = true
+        elseif obj:IsA("MeshPart") then
+            obj.RenderFidelity = Enum.RenderFidelity.Precise
+            obj.DoubleSided = true
+            obj.Transparency = 1 -- Initially invisible
+        elseif obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh") then
+            obj.Transparency = 1 -- Initially invisible
+        end
+    end
+
+    local camera = Workspace.CurrentCamera
+    camera.CameraType = Enum.CameraType.Scriptable
+    local playerPos = LocalPlayer.Character:GetPivot().Position
+    local skyPos = playerPos + Vector3.new(0, 50, 0)
+    local skyCFrame = CFrame.new(skyPos, skyPos + Vector3.new(0, 0, -1))
+    camera.CFrame = skyCFrame
+
+    local offset = CFrame.new(0, 0, -10) * CFrame.Angles(0, math.rad(180), 0)
+    vfxClone:PivotTo(camera.CFrame * offset)
+    print("VFX " .. vfxClone.Name .. " teleported to: ", vfxClone:GetPivot().Position, " with orientation: ", vfxClone:GetPivot().Rotation)
+
+    if useFOVTween then
+        local tweenOut = TS:Create(camera, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {FieldOfView = fovMax or 120})
+        local tweenIn = TS:Create(camera, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {FieldOfView = 70})
+        tweenOut:Play()
+        tweenOut.Completed:Connect(function()
+            tweenIn:Play()
+        end)
+    end
+
+    return vfxClone
+end
+
+local function followCamera(vfx, duration, useFOVTween, fovMax, scale, offset)
+    if not vfx or not LocalPlayer.Character or not Workspace.CurrentCamera then
+        warn("Cannot follow camera for VFX: " .. vfx.Name .. " - Missing character or camera")
+        return nil
+    end
+
+    local vfxClone = vfx:Clone()
+    vfxClone.Name = vfx.Name .. "_Clone"
+    vfxClone.Parent = Workspace
+
+    local primaryPart
+    if vfxClone:IsA("Model") then
+        primaryPart = vfxClone.PrimaryPart
+        if not primaryPart then
+            for _, part in ipairs(vfxClone:GetDescendants()) do
+                if (part:IsA("BasePart") or part:IsA("MeshPart")) and part.Name ~= "GrayBlock" then
+                    primaryPart = part
+                    vfxClone.PrimaryPart = part
+                    break
+                end
+            end
+        end
+        if not primaryPart then
+            warn("No valid primary part found for VFX model: " .. vfxClone.Name)
+            vfxClone:Destroy()
+            return nil
+        end
+    else
+        primaryPart = vfxClone
+    end
+
+    for _, obj in ipairs(vfxClone:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") then
+            obj.Enabled = true
+        elseif obj:IsA("MeshPart") then
+            obj.RenderFidelity = Enum.RenderFidelity.Precise
+            obj.DoubleSided = true
+            obj.Transparency = 0
+        elseif obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh") then
+            obj.Transparency = 0
+        end
+    end
+
+    if scale and vfxClone:IsA("Model") then
+        for _, part in ipairs(vfxClone:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("MeshPart") then
+                part.Size = part.Size * scale
+            end
+        end
+        print("VFX " .. vfxClone.Name .. " scaled by: " .. scale)
+    end
+
+    local camera = Workspace.CurrentCamera
+    camera.CameraType = Enum.CameraType.Scriptable
+    local playerPos = LocalPlayer.Character:GetPivot().Position
+    local skyPos = playerPos + Vector3.new(0, 50, 0)
+    local skyCFrame = CFrame.new(skyPos, skyPos + Vector3.new(0, 0, -1))
+
+    if useFOVTween then
+        local tweenOut = TS:Create(camera, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {FieldOfView = fovMax or 120})
+        local tweenIn = TS:Create(camera, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {FieldOfView = 70})
+        tweenOut:Play()
+        tweenOut.Completed:Connect(function()
+            tweenIn:Play()
+        end)
+        print("FOV tween for " .. vfx.Name .. ": " .. fovMax .. " over 1s, back to 70 over 0.5s")
+    else
+        camera.FieldOfView = 70
+    end
+
+    local connection
+    local startTime = tick()
+    connection = RunService.RenderStepped:Connect(function()
+        if not vfxClone.Parent or not camera or (tick() - startTime) > duration then
+            connection:Disconnect()
+            if vfxClone.Parent then
+                vfxClone:Destroy()
+                print("VFX " .. vfxClone.Name .. " destroyed after duration")
+            end
+            camera.FieldOfView = 70
+            return
+        end
+        camera.CFrame = skyCFrame
+        local offsetCFrame = offset or CFrame.new(0, 0, -10)
+        vfxClone:PivotTo(camera.CFrame * offsetCFrame)
+        print("VFX " .. vfxClone.Name .. " positioned at: ", vfxClone:GetPivot().Position)
+    end)
+
+    return vfxClone
+end
+
+local function hideVFX(vfx)
+    if vfx and vfx.Parent then
+        for _, obj in ipairs(vfx:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") then
+                obj.Enabled = false
+            end
+        end
+        vfx:Destroy()
+        print("VFX " .. vfx.Name .. " destroyed")
+    else
+        warn("VFX not found or already destroyed: " .. (vfx and vfx.Name or "nil"))
+    end
+end
+
+local function showImpactFrames(gui, startFrame, endFrame, duration)
+    if not gui or not gui.Parent then
+        warn("ImpactFrames GUI not found or not in PlayerGui")
+        return
+    end
+    local frameCount = endFrame - startFrame + 1
+    local staggerTime = 0.05 -- Delay between each frame appearance
+    for i = startFrame, endFrame do
+        local frame = gui:FindFirstChild(tostring(i))
+        if frame and frame:IsA("ImageLabel") then
+            local delayTime = (i - startFrame) * staggerTime
+            task.delay(delayTime, function()
+                local tweenIn = TS:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {ImageTransparency = 0})
+                local tweenOut = TS:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {ImageTransparency = 1})
+                tweenIn:Play()
+                tweenIn.Completed:Connect(function()
+                    task.wait(duration - 0.4 - delayTime) -- Adjust display time accounting for delay
+                    tweenOut:Play()
+                end)
+                print("Showing ImpactFrame " .. i .. " with transparency 0 after delay " .. delayTime)
+            end)
+        else
+            warn("ImpactFrame " .. i .. " not found or not an ImageLabel")
+        end
+    end
+end
 
 local function getColor(timeLength, points)
     local data1 = points[1]
@@ -194,15 +583,15 @@ local function Speak(model, data)
 end
 
 local tStyle, tDirection = {
-    [Enum.PoseEasingStyle.Linear]    = Enum.EasingStyle.Linear;
-    [Enum.PoseEasingStyle.Bounce]    = Enum.EasingStyle.Bounce;
-    [Enum.PoseEasingStyle.Cubic]     = Enum.EasingStyle.Cubic;
-    [Enum.PoseEasingStyle.Elastic]   = Enum.EasingStyle.Elastic;
-    [Enum.PoseEasingStyle.Constant]  = Enum.EasingStyle.Linear;
+    [Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+    [Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+    [Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+    [Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+    [Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
 }, {
-    [Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In;
-    [Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out;
-    [Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut;
+    [Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+    [Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+    [Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
 }
 
 function PlayKeyframeSequence(Model, KeyFrameSequence, InitialSpeedMult)
@@ -264,8 +653,8 @@ function PlayKeyframeSequence(Model, KeyFrameSequence, InitialSpeedMult)
     end
     
     local startTime = tick()
-    local transitionDuration = 13
-    local targetSpeedMult = 1.2
+    local transitionDuration = 15
+    local targetSpeedMult = 1.1
     local currentSpeedMult = InitialSpeedMult 
     
     local function lerp(a, b, t)
@@ -296,10 +685,6 @@ function PlayKeyframeSequence(Model, KeyFrameSequence, InitialSpeedMult)
                 tweens[i].Tweens[name] = TS:Create(motorValues[name], tweeninfo, {Value = data.Pose.CFrame})
             end
         end
-    end
-    
-    local function getLength()
-        return KeyFramePoses[#KeyFramePoses].Time
     end
     
     local connection
@@ -335,11 +720,8 @@ function PlayKeyframeSequence(Model, KeyFrameSequence, InitialSpeedMult)
         end
     end
     connection:Disconnect()
-    
-    return getLength()
 end
 
--- Dialogue sequence function
 local function RunDialogueSequence()
     local data1 = {
         {
@@ -490,15 +872,25 @@ local function RunDialogueSequence()
     }
     Speak(dialogueModel, data6)
 end
+
 tool.Activated:Connect(function()
     local character = LocalPlayer.Character
-    if not character then return end
+    if not character then
+        warn("Character not found")
+        return
+    end
     
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
+    if not humanoid then
+        warn("Humanoid not found")
+        return
+    end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not rootPart then
+        warn("HumanoidRootPart not found")
+        return
+    end
     
     rootPart.Anchored = true
     
@@ -507,15 +899,30 @@ tool.Activated:Connect(function()
         animator:Destroy()
     end
     
+    local vfxFolder = ReplicatedStorage:FindFirstChild("UnlimitedFlexWorksVFX")
+    local impactFramesClone
+    if vfxFolder then
+        local impactFrames = vfxFolder:FindFirstChild("ImpactFrames")
+        if impactFrames and impactFrames:IsA("ScreenGui") then
+            impactFramesClone = impactFrames:Clone()
+            impactFramesClone.Name = "ImpactFrames_Clone"
+            impactFramesClone.Parent = LocalPlayer.PlayerGui
+            print("ImpactFrames GUI cloned to PlayerGui")
+        else
+            warn("ImpactFrames GUI not found in ReplicatedStorage")
+        end
+    else
+        warn("VFX folder not found in ReplicatedStorage")
+    end
+    
     task.spawn(function()
         local sound = Instance.new("Sound")
         sound.SoundId = getcustomasset("KJ21.mp3")
         sound.Volume = 1
-        sound.Parent = game.Workspace
+        sound.Parent = Workspace
         sound.Looped = false
         sound:Play()
-        -- Keep sound alive for 28 seconds (animation duration)
-        task.wait(35)
+        task.wait(38)
         sound:Stop()
         sound:Destroy()
     end)
@@ -526,12 +933,134 @@ tool.Activated:Connect(function()
         PlayKeyframeSequence(character, keyframeSequence, 2)
     end)
     
+    task.spawn(function()
+        if not vfxFolder then
+            warn("VFX folder not found in ReplicatedStorage")
+            return
+        end
+
+        local ufwSkyroom = vfxFolder:FindFirstChild("UFWSkyroom")
+        local thingStart = vfxFolder:FindFirstChild("ThingStart")
+        local thingMiddle = vfxFolder:FindFirstChild("ThingMiddle")
+        local thingEnd = vfxFolder:FindFirstChild("ThingEnd")
+        local space1 = vfxFolder:FindFirstChild("Space1")
+        local space = vfxFolder:FindFirstChild("Space")
+
+        if not (ufwSkyroom and thingStart and thingMiddle and thingEnd and space1 and space) then
+            warn("One or more VFX components missing: UFWSkyroom=" .. tostring(ufwSkyroom) .. ", ThingStart=" .. tostring(thingStart) .. ", ThingMiddle=" .. tostring(thingMiddle) .. ", ThingEnd=" .. tostring(thingEnd) .. ", Space1=" .. tostring(space1) .. ", Space=" .. tostring(space))
+            return
+        end
+
+        if impactFramesClone then
+            task.spawn(function()
+                task.wait(3)
+                showImpactFrames(impactFramesClone, 1, 2, 0.5)
+                task.wait(3)
+                showImpactFrames(impactFramesClone, 3, 9, 0.5)
+                task.wait(3)
+                showImpactFrames(impactFramesClone, 10, 21, 0.5)
+                task.wait(4)
+                showImpactFrames(impactFramesClone, 22, 25, 0.5)
+                task.wait(16)
+                if impactFramesClone and impactFramesClone.Parent then
+                    impactFramesClone:Destroy()
+                    print("ImpactFrames GUI destroyed")
+                end
+            end)
+        end
+
+        task.wait(3)
+        Lighting.ClockTime = 0
+        if ufwSkyroom and character then
+            local ufwClone = ufwSkyroom:Clone()
+            ufwClone.Name = "UFWSkyroom_Clone"
+            ufwClone.Parent = Workspace
+            ufwClone:PivotTo(character:GetPivot())
+            if ufwClone:IsA("MeshPart") then
+                ufwClone.Color = Color3.fromRGB(255, 105, 180)
+                ufwClone.Material = Enum.Material.Neon
+            elseif ufwClone:IsA("BasePart") and ufwClone:FindFirstChildWhichIsA("SpecialMesh") then
+                ufwClone.Color = Color3.fromRGB(255, 105, 180)
+                ufwClone.Material = Enum.Material.Neon
+                local specialMesh = ufwClone:FindFirstChildWhichIsA("SpecialMesh")
+                specialMesh.VertexColor = Vector3.new(1, 0.412, 0.706)
+            end
+            for _, obj in ipairs(ufwClone:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") or obj:IsA("Trail") then
+                    obj.Enabled = true
+                end
+            end
+            print("UFWSkyroom shown at position: ", ufwClone:GetPivot().Position)
+            task.wait(13)
+            hideVFX(ufwClone)
+        else
+            warn("UFWSkyroom or character missing at 3 seconds")
+        end
+
+        if thingStart and thingMiddle and thingEnd then
+            local thingStartClone = teleportToCamera(thingStart, 3, true, 120)
+            local thingMiddleClone = teleportToCamera(thingMiddle, 3, false, nil)
+            local thingEndClone = teleportToCamera(thingEnd, 3, false, nil)
+            if thingStartClone and thingMiddleClone and thingEndClone then
+                for _, obj in ipairs(thingStartClone:GetDescendants()) do
+                    if obj:IsA("MeshPart") or (obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("SpecialMesh")) then
+                        obj.Transparency = 0
+                    end
+                end
+                transitionMeshes(thingStartClone, thingMiddleClone, thingEndClone, 3)
+                task.wait(2)
+                hideVFX(thingStartClone)
+                hideVFX(thingMiddleClone)
+                hideVFX(thingEndClone)
+                for _, clone in ipairs({thingStartClone, thingMiddleClone, thingEndClone}) do
+                    if clone.Parent then
+                        clone:Destroy()
+                        print("Fallback: " .. clone.Name .. " destroyed")
+                    end
+                end
+            else
+                warn("Failed to teleport one or more VFX: ThingStart=" .. tostring(thingStartClone) .. ", ThingMiddle=" .. tostring(thingMiddleClone) .. ", ThingEnd=" .. tostring(thingEndClone))
+            end
+        else
+            warn("One or more VFX missing: ThingStart=" .. tostring(thingStart) .. ", ThingMiddle=" .. tostring(thingMiddle) .. ", ThingEnd=" .. tostring(thingEnd))
+        end
+
+        if space1 then
+            local space1Clone = followCamera(space1, 2, true, 170, nil, nil)
+            if space1Clone then
+                task.wait(2)
+                hideVFX(space1Clone)
+            else
+                warn("Failed to make Space1 follow camera")
+            end
+        else
+            warn("Space1 missing")
+        end
+
+        if space then
+            local spaceClone = followCamera(space, 2, false, nil, 2, CFrame.new(0, 0, -5))
+            if spaceClone then
+                task.wait(2)
+                hideVFX(spaceClone)
+            else
+                warn("Failed to make Space follow camera")
+            end
+        else
+            warn("Space missing")
+        end
+
+        Lighting.ClockTime = 14
+        local camera = Workspace.CurrentCamera
+        camera.CameraType = Enum.CameraType.Custom
+        camera.CameraSubject = humanoid
+        camera.FieldOfView = 70
+        print("Camera restored to player and daytime set")
+    end)
+    
     task.wait(29)
     
     local newAnimator = Instance.new("Animator")
     newAnimator.Parent = humanoid
-    
     rootPart.Anchored = false
-    
     humanoid:ChangeState(Enum.HumanoidStateType.Running)
 end)
