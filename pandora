@@ -1,4 +1,6 @@
+if not isfile("PAN.mp3") then
 writefile("PAN.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/PAN.mp3"))
+end
 
 --//====================================================\\--
 --||			   CREATED BY SHACKLUSTER
@@ -1924,3 +1926,4 @@ end
 --||			  		 END OF SCRIPT
 
 --\\====================================================//--
+
