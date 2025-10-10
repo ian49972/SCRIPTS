@@ -13,6 +13,8 @@ I'm sorry, i couldn't help it...
 
 --]]
 
+writefile("SCP.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/SCP.mp3"))
+
 local plr = game.Players.LocalPlayer
 if plr.Character then
     plr.Character.Name = "non"
@@ -64,7 +66,7 @@ EFS.Looped = false
 EFS:Play()
 EFS2 = Instance.new("Sound")
 EFS2.Parent = Torso
-EFS2.SoundId = "rbxassetid://177339878"
+EFS2.SoundId = getcustomasset("SCP.mp3")
 EFS2.Volume = 0.2
 EFS2.Looped = true
 EFS2:Play()
@@ -2912,5 +2914,6 @@ print('---------------------')
 print('do not leak...')
 print('and i hope you have a nice day :)')
 print('---------------------')
+
 
 blink()
