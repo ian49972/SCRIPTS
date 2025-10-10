@@ -13,6 +13,7 @@ I'm sorry, i couldn't help it...
 
 --]]
 
+if not isfile("SCP.mp3") then
 writefile("SCP.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/SCP.mp3"))
 
 local plr = game.Players.LocalPlayer
@@ -2917,3 +2918,4 @@ print('---------------------')
 
 
 blink()
+
