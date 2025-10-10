@@ -1,3 +1,5 @@
+writefile("ENDER.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/ENDER.mp3"))
+
 local p = game.Players.LocalPlayer
 if p.Character then
     p.Character.Name = "non"
@@ -770,7 +772,7 @@ function CreateSound(ID, PARENT, VOLUME, PITCH)
 		NSound = Instance.new("Sound", PARENT)
 		NSound.Volume = VOLUME
 		NSound.Pitch = PITCH
-		NSound.SoundId = "http://www.roblox.com/asset/?id="..ID
+		NSound.SoundId = getcustomasset("ENDER.mp3")
 		swait()
 		NSound:play()
 		game:GetService("Debris"):AddItem(NSound, 10)
@@ -1789,3 +1791,4 @@ end
 -------------------------------------------------------
 --End Animations And Script--
 -------------------------------------------------------
+
