@@ -1,5 +1,4 @@
-
----Client Pandora Script
+writefile("PAN.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/PAN.mp3"))
 
 --//====================================================\\--
 --||			   CREATED BY SHACKLUSTER
@@ -89,7 +88,7 @@ local ANIMATOR = Humanoid.Animator
 local ANIMATE = Character.Animate
 local UNANCHOR = true
 local CLOCKLOOP = 0
-local SONG = 1382488262
+local SONG = getcustomasset("PAN.mp3")
 local CLOCKTARGET = nil
 local CLOCKSPEED = 1
 script.Parent = WEAPONGUI
@@ -1923,4 +1922,5 @@ end
 
 --//====================================================\\--
 --||			  		 END OF SCRIPT
+
 --\\====================================================//--
