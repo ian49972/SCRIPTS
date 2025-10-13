@@ -1,0 +1,694 @@
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local isMobile = UserInputService.TouchEnabled
+print("IsMobile:", isMobile)
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local torso = character:WaitForChild("Torso")
+local head = character:WaitForChild("Head")
+local rightArm = character:WaitForChild("Right Arm")
+local leftArm = character:WaitForChild("Left Arm")
+local rightLeg = character:WaitForChild("Right Leg")
+local leftLeg = character:WaitForChild("Left Leg")
+
+local animator = humanoid:FindFirstChildOfClass("Animator")
+if animator then
+    animator:Destroy()
+end
+
+local RootJoint = rootPart:WaitForChild("RootJoint")
+local Neck = torso:WaitForChild("Neck")
+local RightShoulder = torso:WaitForChild("Right Shoulder")
+local LeftShoulder = torso:WaitForChild("Left Shoulder")
+local RightHip = torso:WaitForChild("Right Hip")
+local LeftHip = torso:WaitForChild("Left Hip")
+
+local ROOTC0 = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180))
+local NECKC0 = CFrame.new(0, 1, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180))
+local RIGHTSHOULDERC0 = CFrame.new(-0.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0))
+local LEFTSHOULDERC0 = CFrame.new(0.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0))
+
+local sine = 0
+local Sin = math.sin
+local Cos = math.cos
+local Rad = math.rad
+
+local function CF(x, y, z)
+    return CFrame.new(x, y, z)
+end
+
+local function angles(x, y, z)
+    return CFrame.Angles(x, y, z)
+end
+
+local function clerp(startCFrame, endCFrame, alpha)
+    return startCFrame:lerp(endCFrame, alpha)
+end
+
+local function Swait()
+    wait(1/60)
+end
+
+for _, item in pairs(character:GetChildren()) do
+    if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") or item:IsA("Accessory") then
+        item:Destroy()
+    end
+end
+
+local faceDecal = head:FindFirstChildOfClass("Decal")
+if not faceDecal then
+    faceDecal = Instance.new("Decal")
+    faceDecal.Parent = head
+    faceDecal.Name = "Face"
+end
+faceDecal.Texture = "rbxassetid://14658372220"
+
+local Reaper = Instance.new("Part")
+Reaper.Name = "Reaper"
+Reaper.Parent = head
+Reaper.CFrame = head.CFrame
+Reaper.FormFactor = "Symmetric"
+Reaper.Size = Vector3.new(1, 1, 1)
+Reaper.CanCollide = false
+Reaper.TopSurface = "Smooth"
+Reaper.BottomSurface = "Smooth"
+Reaper.Locked = true
+
+local Weld = Instance.new("Weld")
+Weld.Parent = Reaper
+Weld.Part0 = head
+Weld.C0 = CFrame.new(0, 0.4, 0) * CFrame.Angles(0, 0, 0)
+Weld.Part1 = Reaper
+
+local Mesh = Instance.new("SpecialMesh")
+Mesh.Parent = Reaper
+Mesh.MeshId = "rbxassetid://1028713"
+Mesh.TextureId = "rbxassetid://127678851"
+Mesh.Offset = Vector3.new(0, 0.3, 0)
+Mesh.Scale = Vector3.new(1.05, 1.05, 1.05)
+Mesh.VertexColor = Vector3.new(0.3, 0, 0.3)
+
+local billboard = Instance.new("BillboardGui")
+billboard.Name = "NoobSwitcherGui"
+billboard.AlwaysOnTop = true
+billboard.Size = UDim2.new(0, 200, 0, 50)
+billboard.StudsOffset = Vector3.new(0, 2, 0)
+billboard.Parent = head
+
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, 0, 1, 0)
+textLabel.BackgroundTransparency = 1
+textLabel.Text = "Downloading songs..."
+textLabel.Font = Enum.Font.Fantasy
+textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+textLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 0)
+textLabel.TextStrokeTransparency = 0
+textLabel.TextSize = 24
+textLabel.Parent = billboard
+
+writefile("Maxilito.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Maxilito.mp3"))
+writefile("Time.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Time.mp3"))
+writefile("Epic.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Epic.mp3"))
+writefile("Light.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Light.mp3"))
+writefile("Warak.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Warak.mp3"))
+writefile("Noobz4life.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Noobz4life.mp3"))
+writefile("Robot.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Robot.mp3"))
+writefile("Banish.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Banish.mp3"))
+writefile("Dominus.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Dominus.mp3"))
+
+wait(5)
+textLabel.Text = "Noob Switcher V5 Recreated by ban_thid"
+wait(2)
+textLabel.Text = "Noob Switcher V5"
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ControlsGui"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+local guiVisible = true
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 350, 0, 350)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.BackgroundTransparency = 0.5
+frame.BorderSizePixel = 2
+frame.BorderColor3 = Color3.fromRGB(255, 255, 0)
+frame.Parent = screenGui
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Controls"
+titleLabel.Font = Enum.Font.Fantasy
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 0)
+titleLabel.TextStrokeTransparency = 0
+titleLabel.TextSize = 24
+titleLabel.Parent = frame
+
+local controlsLabel = Instance.new("TextLabel")
+controlsLabel.Size = UDim2.new(1, 0, 0, 170)
+controlsLabel.Position = UDim2.new(0, 0, 0, 30)
+controlsLabel.BackgroundTransparency = 1
+controlsLabel.Text = "Q - Red Noob\nE - Master Of Time\nR - Dark\nE (in Dark) - Light\nT - Neon Noob\nF - Robot\nY - Depression\nB,A,N - Noob???\nPress same key to revert to Noob Switcher V5"
+controlsLabel.Font = Enum.Font.Fantasy
+controlsLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+controlsLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+controlsLabel.TextStrokeTransparency = 0
+controlsLabel.TextSize = 18
+controlsLabel.TextWrapped = true
+controlsLabel.TextYAlignment = Enum.TextYAlignment.Top
+controlsLabel.Parent = frame
+
+local disclaimerLabel = Instance.new("TextLabel")
+disclaimerLabel.Size = UDim2.new(1, 0, 0, 100)
+disclaimerLabel.Position = UDim2.new(0, 0, 0, 210)
+disclaimerLabel.BackgroundTransparency = 1
+disclaimerLabel.Text = "Disclaimer: This script has no abilities or effects since I don't know how to make them and the script doesn't have the normal Noob Switcher V5 anims because I can't view the full code of Noob Switcher V5 so this script is only for changing your character (visually) and listen to some music because why not. (ban_thid)"
+disclaimerLabel.Font = Enum.Font.Fantasy
+disclaimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+disclaimerLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+disclaimerLabel.TextStrokeTransparency = 0
+disclaimerLabel.TextSize = 16
+disclaimerLabel.TextWrapped = true
+disclaimerLabel.TextYAlignment = Enum.TextYAlignment.Top
+disclaimerLabel.Parent = frame
+
+local noobButton = Instance.new("TextButton")
+noobButton.Size = UDim2.new(0, 50, 0, 50)
+noobButton.Position = UDim2.new(0, 10, 0, 310)
+noobButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+noobButton.BackgroundTransparency = 0.5
+noobButton.BorderSizePixel = 2
+noobButton.BorderColor3 = Color3.fromRGB(255, 255, 0)
+noobButton.Text = "???"
+noobButton.Font = Enum.Font.Fantasy
+noobButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+noobButton.TextStrokeColor3 = Color3.fromRGB(128, 0, 128)
+noobButton.TextStrokeTransparency = 0
+noobButton.TextSize = 24
+noobButton.Parent = frame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 50, 0, 50)
+toggleButton.Position = isMobile and UDim2.new(1, -60, 1, -110) or UDim2.new(0, 360, 0, 10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.BackgroundTransparency = 0.5
+toggleButton.BorderSizePixel = 2
+toggleButton.BorderColor3 = Color3.fromRGB(255, 255, 0)
+toggleButton.Text = "Hide"
+toggleButton.Font = Enum.Font.Fantasy
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+toggleButton.TextSize = 18
+toggleButton.Parent = screenGui
+
+local modeButtons = {}
+local buttonsFrame = Instance.new("Frame")
+buttonsFrame.Size = UDim2.new(1, 0, 0, 60)
+buttonsFrame.Position = UDim2.new(0, 0, 1, -60)
+buttonsFrame.BackgroundTransparency = 1
+buttonsFrame.Visible = isMobile
+buttonsFrame.Parent = screenGui
+print("ButtonsFrame created, Visible:", buttonsFrame.Visible)
+
+local currentMode = "Noob Switcher V5"
+local shadowHead = nil
+local isDead = false
+local currentSound = nil
+local visualizerConnection = nil
+local codeSequence = ""
+local codeTimeout = nil
+
+local function updateMobileButtons()
+    if not isMobile then return end
+    for mode, button in pairs(modeButtons) do
+        if mode == currentMode then
+            button.Visible = true
+            print("Button for", mode, "set to Visible: true")
+        elseif mode == "Light" and currentMode == "Dark" then
+            button.Visible = true
+            print("Button for Light set to Visible: true (in Dark mode)")
+        elseif mode == "Noob???" then
+            button.Visible = true
+            print("Button for Noob??? set to Visible: true")
+        else
+            button.Visible = false
+            print("Button for", mode, "set to Visible: false")
+        end
+    end
+end
+
+if isMobile then
+    local modes = {
+        {key = "Q", mode = "Fire Noob", outline = Color3.fromRGB(255, 0, 0)},
+        {key = "E", mode = "Master Of Time", outline = Color3.fromRGB(139, 69, 19)},
+        {key = "R", mode = "Dark", outline = Color3.fromRGB(255, 255, 255)},
+        {key = "T", mode = "Neon Noob", outline = Color3.fromRGB(255, 255, 0)},
+        {key = "F", mode = "Robot", outline = Color3.fromRGB(0, 255, 0)},
+        {key = "E", mode = "Light", outline = Color3.fromRGB(255, 255, 255), darkOnly = true},
+        {key = "Y", mode = "Depression", outline = Color3.fromRGB(128, 128, 128)},
+        {key = "???", mode = "Noob???", outline = Color3.fromRGB(128, 0, 128)}
+    }
+    for i, mode in ipairs(modes) do
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(0, 60, 0, 60)
+        button.Position = UDim2.new(0, (i-1)*70, 0, 0)
+        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        button.BackgroundTransparency = 0.5
+        button.BorderSizePixel = 2
+        button.BorderColor3 = Color3.fromRGB(255, 255, 0)
+        button.Text = mode.key
+        button.Font = Enum.Font.Fantasy
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextStrokeColor3 = mode.outline
+        button.TextStrokeTransparency = 0
+        button.TextSize = 24
+        button.Visible = (mode.mode == "Noob???" or mode.mode == "Noob Switcher V5" or (mode.mode == "Light" and currentMode == "Dark"))
+        button.Parent = buttonsFrame
+        modeButtons[mode.mode] = button
+        modeButtons[mode.key] = button
+        print("Created button for", mode.mode, "Key:", mode.key, "Visible:", button.Visible)
+        button.MouseButton1Click:Connect(function()
+            if mode.darkOnly and currentMode ~= "Dark" then return end
+            if mode.mode == "Noob???" then
+                textLabel.Text = "Press B, A, N to activate Noob???"
+                wait(2)
+                textLabel.Text = currentMode
+                return
+            end
+            local newMode = (currentMode == mode.mode or (mode.mode == "Light" and currentMode == "Dark")) and "Noob Switcher V5" or mode.mode
+            if newMode and (currentMode == "Noob Switcher V5" or newMode == "Noob Switcher V5" or (currentMode == "Dark" and newMode == "Light") or (currentMode == "Light" and newMode == "Noob Switcher V5")) then
+                currentMode = newMode
+                updateAppearance(newMode)
+                updateMobileButtons()
+                print("Switched to mode:", newMode)
+            end
+        end)
+    end
+end
+
+noobButton.MouseButton1Click:Connect(function()
+    textLabel.Text = "Press B, A, N to activate Noob???"
+    wait(2)
+    textLabel.Text = currentMode
+end)
+
+toggleButton.MouseButton1Click:Connect(function()
+    guiVisible = not guiVisible
+    frame.Visible = guiVisible
+    toggleButton.Text = guiVisible and "Hide" or "Show"
+end)
+
+local function updateAppearance(mode)
+    if isDead then return end
+
+    if currentSound then
+        currentSound:Stop()
+        currentSound:Destroy()
+    end
+    currentSound = Instance.new("Sound")
+    currentSound.Volume = 2
+    currentSound.Looped = true
+    currentSound.Parent = Workspace
+
+    if visualizerConnection then
+        visualizerConnection:Disconnect()
+        visualizerConnection = nil
+    end
+
+    if shadowHead then
+        shadowHead:Destroy()
+        shadowHead = nil
+    end
+
+    faceDecal.Texture = "rbxassetid://14658372220"
+
+    head.Material = Enum.Material.Plastic
+    rightArm.Material = Enum.Material.Plastic
+    leftArm.Material = Enum.Material.Plastic
+    torso.Material = Enum.Material.Plastic
+    rightLeg.Material = Enum.Material.Plastic
+    leftLeg.Material = Enum.Material.Plastic
+
+    Mesh.MeshId = "rbxassetid://1028713"
+    Mesh.TextureId = "rbxassetid://127678851"
+    Mesh.Offset = Vector3.new(0, 0.3, 0)
+    Mesh.Scale = Vector3.new(1.05, 1.05, 1.05)
+    Mesh.VertexColor = Vector3.new(0.3, 0, 0.3)
+
+    if mode == "Noob Switcher V5" then
+        head.BrickColor = BrickColor.new("New Yeller")
+        rightArm.BrickColor = BrickColor.new("New Yeller")
+        leftArm.BrickColor = BrickColor.new("New Yeller")
+        torso.BrickColor = BrickColor.new("Really blue")
+        rightLeg.BrickColor = BrickColor.new("Forest green")
+        leftLeg.BrickColor = BrickColor.new("Forest green")
+        textLabel.Text = "Noob Switcher V5"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 0)
+        currentSound.SoundId = getcustomasset("Noobz4life.mp3")
+    elseif mode == "Robot" then
+        head.BrickColor = BrickColor.new("Institutional white")
+        rightArm.BrickColor = BrickColor.new("Institutional white")
+        leftArm.BrickColor = BrickColor.new("Institutional white")
+        torso.BrickColor = BrickColor.new("Really black")
+        rightLeg.BrickColor = BrickColor.new("Really black")
+        leftLeg.BrickColor = BrickColor.new("Really black")
+        head.Material = Enum.Material.DiamondPlate
+        rightArm.Material = Enum.Material.DiamondPlate
+        leftArm.Material = Enum.Material.DiamondPlate
+        torso.Material = Enum.Material.DiamondPlate
+        rightLeg.Material = Enum.Material.DiamondPlate
+        leftLeg.Material = Enum.Material.DiamondPlate
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Really black")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        textLabel.Text = "Robot"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+        currentSound.SoundId = getcustomasset("Robot.mp3")
+    elseif mode == "Dark" then
+        head.BrickColor = BrickColor.new("Institutional white")
+        rightArm.BrickColor = BrickColor.new("Institutional white")
+        leftArm.BrickColor = BrickColor.new("Institutional white")
+        torso.BrickColor = BrickColor.new("Really black")
+        rightLeg.BrickColor = BrickColor.new("Really black")
+        leftLeg.BrickColor = BrickColor.new("Really black")
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Really black")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        faceDecal.Texture = "rbxassetid://11568966506"
+        textLabel.Text = "Dark"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
+        currentSound.SoundId = getcustomasset("Warak.mp3")
+    elseif mode == "Fire Noob" then
+        head.BrickColor = BrickColor.new("New Yeller")
+        rightArm.BrickColor = BrickColor.new("New Yeller")
+        leftArm.BrickColor = BrickColor.new("New Yeller")
+        torso.BrickColor = BrickColor.new("Really red")
+        rightLeg.BrickColor = BrickColor.new("Really black")
+        leftLeg.BrickColor = BrickColor.new("Really black")
+        textLabel.Text = "Red Noob"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+        currentSound.SoundId = getcustomasset("Banish.mp3")
+    elseif mode == "Master Of Time" then
+        head.BrickColor = BrickColor.new("New Yeller")
+        rightArm.BrickColor = BrickColor.new("New Yeller")
+        leftArm.BrickColor = BrickColor.new("New Yeller")
+        torso.BrickColor = BrickColor.new("Brown")
+        rightLeg.BrickColor = BrickColor.new("Really black")
+        leftLeg.BrickColor = BrickColor.new("Really black")
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Really black")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        faceDecal.Texture = "rbxassetid://11568966506"
+        textLabel.Text = "Master Of Time"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(139, 69, 19)
+        currentSound.SoundId = getcustomasset("Time.mp3")
+        currentSound.TimePosition = 20
+        currentSound.Played:Connect(function()
+            currentSound.TimePosition = 20
+        end)
+    elseif mode == "Neon Noob" then
+        head.BrickColor = BrickColor.new("New Yeller")
+        rightArm.BrickColor = BrickColor.new("New Yeller")
+        leftArm.BrickColor = BrickColor.new("New Yeller")
+        torso.BrickColor = BrickColor.new("Really blue")
+        rightLeg.BrickColor = BrickColor.new("Forest green")
+        leftLeg.BrickColor = BrickColor.new("Forest green")
+        head.Material = Enum.Material.Neon
+        rightArm.Material = Enum.Material.Neon
+        leftArm.Material = Enum.Material.Neon
+        torso.Material = Enum.Material.Neon
+        rightLeg.Material = Enum.Material.Neon
+        textLabel.Text = "Neon Noob"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 0)
+        currentSound.SoundId = getcustomasset("Dominus.mp3")
+    elseif mode == "Light" then
+        head.BrickColor = BrickColor.new("Institutional white")
+        rightArm.BrickColor = BrickColor.new("Institutional white")
+        leftArm.BrickColor = BrickColor.new("Institutional white")
+        torso.BrickColor = BrickColor.new("Pastel gray")
+        rightLeg.BrickColor = BrickColor.new("Pastel gray")
+        leftLeg.BrickColor = BrickColor.new("Pastel gray")
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Pastel gray")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        textLabel.Text = "Light"
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
+        currentSound.SoundId = getcustomasset("Light.mp3")
+    elseif mode == "Depression" then
+        head.BrickColor = BrickColor.new("Institutional white")
+        rightArm.BrickColor = BrickColor.new("Institutional white")
+        leftArm.BrickColor = BrickColor.new("Institutional white")
+        torso.BrickColor = BrickColor.new("Pastel gray")
+        rightLeg.BrickColor = BrickColor.new("Pastel gray")
+        leftLeg.BrickColor = BrickColor.new("Pastel gray")
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Pastel gray")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        faceDecal.Texture = "rbxassetid://10713961124"
+        textLabel.Text = "Depression"
+        textLabel.TextColor3 = Color3.fromRGB(128, 128, 128)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(128, 128, 128)
+        currentSound.SoundId = getcustomasset("Maxilito.mp3")
+    elseif mode == "Noob???" then
+        head.BrickColor = BrickColor.new("New Yeller")
+        rightArm.BrickColor = BrickColor.new("New Yeller")
+        leftArm.BrickColor = BrickColor.new("New Yeller")
+        torso.BrickColor = BrickColor.new("Really red")
+        rightLeg.BrickColor = BrickColor.new("Really black")
+        leftLeg.BrickColor = BrickColor.new("Really black")
+        shadowHead = Instance.new("Part")
+        shadowHead.BrickColor = BrickColor.new("Really black")
+        shadowHead.Size = Vector3.new(1.2, 0.6, 1)
+        shadowHead.CanCollide = false
+        shadowHead.Parent = head
+        local shadowHeadMesh = Instance.new("SpecialMesh")
+        shadowHeadMesh.MeshType = "Head"
+        shadowHeadMesh.Scale = Vector3.new(1.26, 1.5, 1.26)
+        shadowHeadMesh.Parent = shadowHead
+        local weld2 = Instance.new("Weld")
+        weld2.Part0 = shadowHead
+        weld2.Part1 = head
+        weld2.C1 = CFrame.new(0, 0.200000048, 0)
+        weld2.Parent = shadowHead
+        faceDecal.Texture = "rbxassetid://15233895669"
+        textLabel.Text = "Noob Switcher???"
+        textLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+        textLabel.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+        currentSound.SoundId = getcustomasset("Epic.mp3")
+        visualizerConnection = RunService.RenderStepped:Connect(function(deltaTime)
+            if not currentSound or not currentSound.IsPlaying then return end
+            local amplitude = currentSound.PlaybackLoudness / 200
+            local color = Color3.new(math.min(1, amplitude), 0, math.max(0, 1 - amplitude))
+            torso.BrickColor = BrickColor.new(color)
+        end)
+    end
+
+    updateMobileButtons()
+
+    if not isDead then
+        currentSound:Play()
+    end
+end
+
+humanoid.Died:Connect(function()
+    isDead = true
+    if currentSound then
+        currentSound:Stop()
+        currentSound:Destroy()
+        currentSound = nil
+    end
+    if visualizerConnection then
+        visualizerConnection:Disconnect()
+        visualizerConnection = nil
+    end
+    screenGui:Destroy()
+    billboard:Destroy()
+    for _, connection in ipairs({RunService.RenderStepped:GetConnections()}) do
+        connection:Disconnect()
+    end
+    for _, connection in ipairs({UserInputService.InputBegan:GetConnections()}) do
+        connection:Disconnect()
+    end
+end)
+
+player.CharacterAdded:Connect(function(newCharacter)
+    isDead = true
+end)
+
+updateAppearance("Noob Switcher V5")
+updateMobileButtons()
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or isDead then return end
+    local key = input.KeyCode
+    local newMode = nil
+
+    -- Handle code sequence for "Noob???" mode
+    if key == Enum.KeyCode.B then
+        codeSequence = "b"
+        if codeTimeout then codeTimeout:Disconnect() end
+        codeTimeout = RunService.Heartbeat:Connect(function()
+            wait(2)
+            codeSequence = ""
+        end)
+    elseif key == Enum.KeyCode.A and codeSequence == "b" then
+        codeSequence = "ba"
+    elseif key == Enum.KeyCode.N and codeSequence == "ba" then
+        codeSequence = ""
+        if codeTimeout then
+            codeTimeout:Disconnect()
+            codeTimeout = nil
+        end
+        newMode = (currentMode == "Noob???") and "Noob Switcher V5" or "Noob???"
+    elseif key ~= Enum.KeyCode.A and key ~= Enum.KeyCode.B and key ~= Enum.KeyCode.N then
+        codeSequence = ""
+        if codeTimeout then
+            codeTimeout:Disconnect()
+            codeTimeout = nil
+        end
+    end
+
+    if key == Enum.KeyCode.Q then
+        newMode = (currentMode == "Fire Noob") and "Noob Switcher V5" or "Fire Noob"
+    elseif key == Enum.KeyCode.E then
+        if currentMode == "Dark" or currentMode == "Light" then
+            newMode = currentMode == "Light" and "Noob Switcher V5" or "Light"
+        elseif currentMode == "Noob Switcher V5" then
+            newMode = "Master Of Time"
+        elseif currentMode == "Master Of Time" then
+            newMode = "Noob Switcher V5"
+        end
+    elseif key == Enum.KeyCode.R then
+        newMode = (currentMode == "Dark" or currentMode == "Light") and "Noob Switcher V5" or "Dark"
+    elseif key == Enum.KeyCode.T then
+        newMode = (currentMode == "Neon Noob") and "Noob Switcher V5" or "Neon Noob"
+    elseif key == Enum.KeyCode.F then
+        newMode = (currentMode == "Robot") and "Noob Switcher V5" or "Robot"
+    elseif key == Enum.KeyCode.Y then
+        newMode = (currentMode == "Depression") and "Noob Switcher V5" or "Depression"
+    end
+
+    if newMode and (currentMode == "Noob Switcher V5" or newMode == "Noob Switcher V5" or (currentMode == "Dark" and newMode == "Light") or (currentMode == "Light" and newMode == "Noob Switcher V5") or newMode == "Noob???") then
+        currentMode = newMode
+        updateAppearance(newMode)
+        print("Switched to mode via keyboard:", newMode)
+    end
+end)
+
+local Animation_Speed = 1
+RunService.RenderStepped:Connect(function(deltaTime)
+    if isDead then return end
+    sine = sine + deltaTime * 60
+
+    local isMoving = humanoid.MoveDirection.Magnitude > 0.1
+
+    if currentMode == "Noob???" and not isMoving then
+        sine = sine + deltaTime * 10
+        local snap = math.random(1, 72)
+        if snap == 1 then
+            local sound = Instance.new("Sound")
+            sound.SoundId = "rbxassetid://363808674"
+            sound.Volume = 3
+            sound.PlaybackSpeed = 1.3
+            sound.Parent = head
+            sound:Play()
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+            Neck.C0 = clerp(Neck.C0, NECKC0 * CF(0, 0, 0) * angles(Rad(math.random(-100, 100)), Rad(math.random(-100, 100)), Rad(math.random(-200, 200))), 1 / Animation_Speed)
+        end
+        RootJoint.C0 = clerp(RootJoint.C0, ROOTC0 * CF(0, 0, 0 + 0.15 * Sin(sine / 32)) * angles(0, 0, 0), 0.15 / Animation_Speed)
+        Neck.C0 = clerp(Neck.C0, NECKC0 * CF(0, 0, 0) * angles(Rad(40), Rad(-10), 0), 0.15 / Animation_Speed)
+        RightShoulder.C0 = clerp(RightShoulder.C0, CF(1.5, 0.5, 0) * angles(0, 0, Rad(10 + 5 * Sin(sine / 24))) * RIGHTSHOULDERC0, 0.15 / Animation_Speed)
+        LeftShoulder.C0 = clerp(LeftShoulder.C0, CF(-1.5, 0.5, 0) * angles(0, 0, Rad(-10 - 5 * Sin(sine / 24))) * LEFTSHOULDERC0, 0.15 / Animation_Speed)
+        RightHip.C0 = clerp(RightHip.C0, CF(1, -1 - 0.15 * Sin(sine / 32), 0) * angles(0, Rad(90), 0) * angles(Rad(-8 + 2.5 * Sin(sine / 32)), 0, 0), 0.15 / Animation_Speed)
+        LeftHip.C0 = clerp(LeftHip.C0, CF(-1, -1 - 0.15 * Sin(sine / 32), 0) * angles(0, Rad(-90), 0) * angles(Rad(-8 + 2.5 * Sin(sine / 32)), 0, 0), 0.15 / Animation_Speed)
+    elseif isMoving then
+        RootJoint.C0 = clerp(RootJoint.C0, ROOTC0 * CF(0, 0, -0.175 + 0.025 * Cos(sine / 3.5) + -Sin(sine / 3.5) / 7) * angles(Rad(3 - 2.5 * Cos(sine / 3.5)), Rad(0) - rootPart.RotVelocity.Y / 75, Rad(3 * Cos(sine / 7))), 0.15)
+        Neck.C0 = clerp(Neck.C0, NECKC0 * angles(Rad(6 - 2.5 * Sin(sine / 7)), Rad(0), Rad(0) - head.RotVelocity.Y / 15), 0.3)
+        RightHip.C0 = clerp(RightHip.C0, CF(1, -0.8 - 0.5 * Cos(sine / 7) / 2, 0.6 * Cos(sine / 7) / 2) * angles(Rad(-15 - 5 * Cos(sine / 7)) - rightLeg.RotVelocity.Y / 75 + -Sin(sine / 7) / 2.5, Rad(90 - 3 * Cos(sine / 7)), Rad(0)) * angles(Rad(0 + 2 * Cos(sine / 7)), Rad(0), Rad(0)), 0.3)
+        LeftHip.C0 = clerp(LeftHip.C0, CF(-1, -0.8 + 0.5 * Cos(sine / 7) / 2, -0.6 * Cos(sine / 7) / 2) * angles(Rad(-15 + 5 * Cos(sine / 7)) + leftLeg.RotVelocity.Y / 75 + Sin(sine / 7) / 2.5, Rad(-90 - 3 * Cos(sine / 7)), Rad(0)) * angles(Rad(0 - 2 * Cos(sine / 7)), Rad(0), Rad(0)), 0.3)
+        RightShoulder.C0 = clerp(RightShoulder.C0, CF(1.5, 0.5 + 0.05 * Sin(sine / 20), 0.025 * Cos(sine / 20)) * angles(Rad(0), Rad(-10 * Cos(sine / 7)), Rad(5 - 2.5 * Sin(sine / 20))), 0.1)
+        LeftShoulder.C0 = clerp(LeftShoulder.C0, CF(-1, 0.3 + 0.02 * Sin(sine / 20), 0.6) * angles(Rad(-35), Rad(25 + 2.5 * Sin(sine / 20)), Rad(55 + 2.5 * Sin(sine / 20))), 0.12)
+    else
+        RootJoint.C0 = clerp(RootJoint.C0, ROOTC0 * CF(0 - 0.04 * Sin(sine / 24), 0 + 0.04 * Sin(sine / 12), 0 + 0.05 * Cos(sine / 12)) * angles(Rad(0 - 2.5 * Sin(sine / 12)), Rad(0 - 2.5 * Sin(sine / 24)), Rad(0)), 0.15)
+        Neck.C0 = clerp(Neck.C0, NECKC0 * CF(0, 0, 0) * angles(Rad(25 - 2.5 * Sin(sine / 12)), Rad(0), Rad(0)), 0.15)
+        RightHip.C0 = clerp(RightHip.C0, CF(1, -1 - 0.06 - 0.05 * Cos(sine / 12), -0.01) * angles(Rad(0 - 2.5 * Sin(sine / 12)), Rad(79), Rad(0)) * angles(Rad(-6 - 2.5 * Sin(sine / 24)), Rad(0), Rad(0)), 0.15)
+        LeftHip.C0 = clerp(LeftHip.C0, CF(-1, -1 - 0.06 - 0.05 * Cos(sine / 12), -0.01) * angles(Rad(0 - 2.5 * Sin(sine / 12)), Rad(-79), Rad(0)) * angles(Rad(-6 + 2.5 * Sin(sine / 24)), Rad(0), Rad(0)), 0.15)
+        RightShoulder.C0 = clerp(RightShoulder.C0, CF(1, 0.5 + 0.02 * Sin(sine / 12), 0.6) * angles(Rad(-20), Rad(-0.6), Rad(-43)) * RIGHTSHOULDERC0, 0.15)
+        LeftShoulder.C0 = clerp(LeftShoulder.C0, CF(-1, 0.5 + 0.02 * Sin(sine / 12), 0.6) * angles(Rad(-20), Rad(-0.6), Rad(43)) * LEFTSHOULDERC0, 0.15)
+    end
+end)
