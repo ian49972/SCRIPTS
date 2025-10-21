@@ -1,3 +1,6 @@
+writefile("OmniForm.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/OmniForm.mp3"))
+writefile("OmniSong.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/OmniSong.mp3"))
+
 -------[[ Lets start with something simple like the Variables & Settings ]]-----
 local plr = game.Players.LocalPlayer
 if plr.Character then
@@ -808,6 +811,9 @@ GroundWave = function()
                 local value = 5
                 local value2 = 10
                 local value3 = 20
+
+                 task.wait(2)
+
 local sa2 = Instance.new("Sound",Torso)
 sa2.SoundId = "rbxassetid://393621716"
 sa2.Pitch = 1
@@ -978,10 +984,10 @@ end
 
 
 local Mus = Instance.new("Sound",char)
-Mus.SoundId = "rbxassetid://752647397"
+Mus.SoundId = getcustomasset("OmniSong.mp3")
 Mus.Pitch = 1
-Mus.Volume = 40
-Mus.Looped = false
+Mus.Volume = 1
+Mus.Looped = true
 wait(0.3)
 Mus:Play()
 
@@ -4429,3 +4435,4 @@ wait(0.04)
 part2.Texture = "http://www.roblox.com/asset/?id=358965664" 
 wait(0.04)
 end
+
