@@ -1,0 +1,833 @@
+-----------------------
+--HOKUTO, NO SHINKEN!--
+----------------------------------------------------------------
+--By CKbackup (Sugarie Saffron)                               --
+--YT: https://www.youtube.com/channel/UC8n9FFz7e6Zo13ob_5F9MJw--
+--Discord: Sugarie Saffron#4705                               --
+----------------------------------------------------------------
+
+print([[
+--Hokuto Shinken (Divine Fist of the North Star)--
+By CKbackup (Sugarie Saffron)                               
+YT: https://www.youtube.com/channel/UC8n9FFz7e6Zo13ob_5F9MJw
+Discord: Sugarie Saffron#4705    
+--------------------------------
+As I've been demoted from my SB
+Mod rank in VSB, I don't see the
+need to hold this back any longer.
+
+Also, if the anims look weird or
+the weapon looks out of place,
+it's because it's actually modeled
+off a scaled rig with a package.
+It looks better with the Boy
+package.
+--------------------------------
+(Keys)
+M - Mute/Play Music
+F - Energy Particles
+
+K/L - Change the You Wa Shock song
+to either the new/old instrumental ver.
+
+(Hold) Click - Hundred Crack Fist
+Q - Teleport
+Z - Tell those you've struck that
+they're already dead
+]])
+player = game.Players.LocalPlayer
+mouse = player:GetMouse()
+chara = player.Character
+equipped = false
+del = false
+attacking = false
+atkd = false
+hum = chara:FindFirstChildOfClass("Humanoid")
+debby = game.Debris
+ws = 10
+hum.WalkSpeed = 10
+
+ArtificialHB = Instance.new("BindableEvent", script)
+ArtificialHB.Name = "Heartbeat"
+script:WaitForChild("Heartbeat")
+frame = 0.03333333333333
+tf = 0
+allowframeloss = false
+tossremainder = false
+lastframe = tick()
+script.Heartbeat:Fire()
+game:GetService("RunService").Heartbeat:connect(function(s, p)
+  tf = tf + s
+  if tf >= frame then
+    if allowframeloss then
+      script.Heartbeat:Fire()
+      lastframe = tick()
+    else
+      for i = 1, math.floor(tf / frame) do
+        script.Heartbeat:Fire()
+      end
+      lastframe = tick()
+    end
+    if tossremainder then
+      tf = 0
+    else
+      tf = tf - frame * math.floor(tf / frame)
+    end
+  end
+end)
+function swait(num)
+  if num == 0 or num == nil then
+    ArtificialHB.Event:wait()
+  else
+    for i = 0, num*30 do
+      ArtificialHB.Event:wait()
+    end
+  end
+end
+
+New = function(Object, Parent, Name, Data)
+	local Object = Instance.new(Object)
+	for Index, Value in pairs(Data or {}) do
+		Object[Index] = Value
+	end
+	Object.Parent = Parent
+	Object.Name = Name
+	return Object
+end
+
+RightArm = New("Model",chara,"RightArm",{})
+MainPart = New("Part",RightArm,"MainPart",{Transparency = 1,Transparency = 1,Size = Vector3.new(1, 2, 1),CFrame = CFrame.new(0.5, 3.00000787, -3.50019717, 1, 0, 0, 0, 1, 0, 0, 0, 1),CanCollide = false,BackSurface = Enum.SurfaceType.SmoothNoOutlines,BottomSurface = Enum.SurfaceType.SmoothNoOutlines,FrontSurface = Enum.SurfaceType.SmoothNoOutlines,LeftSurface = Enum.SurfaceType.SmoothNoOutlines,RightSurface = Enum.SurfaceType.SmoothNoOutlines,TopSurface = Enum.SurfaceType.SmoothNoOutlines,})
+Weld = New("ManualWeld",MainPart,"Weld",{Part0 = MainPart,Part1 = chara["Right Arm"],C1 = CFrame.new(0, -1.00135803e-005, -0.000197172165, 1, 0, 0, 0, 1, 0, 0, 0, 1),})
+Emit2Part = New("Part",RightArm,"Emit2Part",{BrickColor = BrickColor.new("Royal purple"),Material = Enum.Material.Neon,Transparency = 1,Transparency = 1,Size = Vector3.new(1, 1, 1),CFrame = CFrame.new(0.5, 2.10001373, -3.5001967, 1, 0, 0, 0, 1, 0, 0, 0, 1),CanCollide = false,BackSurface = Enum.SurfaceType.SmoothNoOutlines,BottomSurface = Enum.SurfaceType.SmoothNoOutlines,FrontSurface = Enum.SurfaceType.SmoothNoOutlines,LeftSurface = Enum.SurfaceType.SmoothNoOutlines,RightSurface = Enum.SurfaceType.SmoothNoOutlines,TopSurface = Enum.SurfaceType.SmoothNoOutlines,Color = Color3.new(1, 0, 0.74902),})
+Mesh = New("SpecialMesh",Emit2Part,"Mesh",{Scale = Vector3.new(1.29999995, 1.29999995, 1.29999995),MeshType = Enum.MeshType.Sphere,})
+Weld = New("ManualWeld",Emit2Part,"Weld",{Part0 = Emit2Part,Part1 = MainPart,C1 = CFrame.new(0, -0.899994135, 4.76837158e-007, 1, 0, 0, 0, 1, 0, 0, 0, 1),})
+LeftArm = New("Model",chara,"LeftArm",{})
+MainPart = New("Part",LeftArm,"MainPart",{Transparency = 1,Transparency = 1,Size = Vector3.new(1, 2, 1),CFrame = CFrame.new(-2.50000024, 3.00000787, -3.50019717, 1, 0, 0, 0, 1, 0, 0, 0, 1),CanCollide = false,BackSurface = Enum.SurfaceType.SmoothNoOutlines,BottomSurface = Enum.SurfaceType.SmoothNoOutlines,FrontSurface = Enum.SurfaceType.SmoothNoOutlines,LeftSurface = Enum.SurfaceType.SmoothNoOutlines,RightSurface = Enum.SurfaceType.SmoothNoOutlines,TopSurface = Enum.SurfaceType.SmoothNoOutlines,})
+Weld = New("ManualWeld",MainPart,"Weld",{Part0 = MainPart,Part1 = chara["Left Arm"],C1 = CFrame.new(-2.38418579e-007, -1.00135803e-005, -0.000197172165, 1, 0, 0, 0, 1, 0, 0, 0, 1),})
+EmitPart = New("Part",LeftArm,"EmitPart",{BrickColor = BrickColor.new("Royal purple"),Material = Enum.Material.Neon,Transparency = 1,Transparency = 1,Size = Vector3.new(1, 1, 1),CFrame = CFrame.new(-2.5, 2.10001373, -3.5001967, 1, 0, 0, 0, 1, 0, 0, 0, 1),CanCollide = false,BackSurface = Enum.SurfaceType.SmoothNoOutlines,BottomSurface = Enum.SurfaceType.SmoothNoOutlines,FrontSurface = Enum.SurfaceType.SmoothNoOutlines,LeftSurface = Enum.SurfaceType.SmoothNoOutlines,RightSurface = Enum.SurfaceType.SmoothNoOutlines,TopSurface = Enum.SurfaceType.SmoothNoOutlines,Color = Color3.new(1, 0, 0.74902),})
+Mesh = New("SpecialMesh",EmitPart,"Mesh",{Scale = Vector3.new(1.29999995, 1.29999995, 1.29999995),MeshType = Enum.MeshType.Sphere,})
+Weld = New("ManualWeld",EmitPart,"Weld",{Part0 = EmitPart,Part1 = MainPart,C1 = CFrame.new(2.38418579e-007, -0.899994135, 4.76837158e-007, 1, 0, 0, 0, 1, 0, 0, 0, 1),})
+
+lach = LeftArm:GetChildren()
+rach = RightArm:GetChildren()
+
+local pemit = Instance.new("ParticleEmitter")
+pemit.Name = "beter"
+pemit.Enabled = false
+pemit.LightEmission = 1
+pemit.Size = NumberSequence.new(1,0)
+pemit.Transparency = NumberSequence.new(0,1)
+pemit.Texture = "rbxassetid://745304849"
+pemit.Lifetime = NumberRange.new(.5)
+pemit.Acceleration = Vector3.new(0,20,0)
+pemit.Rate = 200
+pemit.Rotation = NumberRange.new(0,360)
+pemit.Speed = NumberRange.new(2)
+pemit.RotSpeed = NumberRange.new(100)
+pemit.VelocitySpread = 100
+pemit.ZOffset = -.5
+
+for i, v in pairs(chara:GetChildren()) do
+if v ~= chara.HumanoidRootPart and v:IsA("BasePart") then
+pemit:Clone().Parent = v
+end
+if v:IsA("ShirtGraphic") or v:IsA("Shirt") or v:IsA("Pants") then
+v:Destroy()
+end
+if v.Name == "Chest" then
+for a, t in pairs(v:GetChildren()) do
+if t ~= v.MainPart and t ~= v.Tail then
+t:Destroy()
+end
+end
+end
+if v.Name == "FakeHeadM" then
+v.FakeHead.Normal.Texture = "http://www.roblox.com/asset/?id=1000657824"
+for a, t in pairs(v:GetChildren()) do
+if t.Name == "SpecPart" then
+t:Destroy()
+end
+end
+end
+end
+
+ShadowHead = New("Part",chara,"ShadowHeads",{BrickColor = BrickColor.new("Really black"),Size = Vector3.new(1.20000005, 0.600000024, 1),CFrame = CFrame.new(68.5999985, 0.700013041, 9.89999962, 1, 0, 0, 0, 1, 0, 0, 0, 1),Color = Color3.new(0.0666667, 0.0666667, 0.0666667),})
+Mesh = New("SpecialMesh",ShadowHead,"Mesh",{Scale = Vector3.new(1.3, 1.5, 1.3),})
+Weld = New("ManualWeld",ShadowHead,"Weld",{Part0 = ShadowHead,Part1 = chara.Head,C1 = CFrame.new(0, 0.200000048, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),})
+ShadowHead.Transparency = 1
+
+--LACM = New("CharacterMesh",chara,"LACM",{MeshId = "32328397",BodyPart = "LeftArm"})
+--LLCM = New("CharacterMesh",chara,"LLCM",{MeshId = "319336109",BodyPart = "LeftLeg"})
+--RACM = New("CharacterMesh",chara,"RACM",{MeshId = "32328563",BodyPart = "RightArm"})
+--RLCM = New("CharacterMesh",chara,"RLCM",{MeshId = "319336155",BodyPart = "RightLeg"})
+--TOCM = New("CharacterMesh",chara,"TOCM",{MeshId = "32328670",BodyPart = "Torso"})
+
+local shi = Instance.new("Shirt",chara)
+shi.ShirtTemplate = "http://www.roblox.com/asset/?id=1188791280"
+local pan = Instance.new("Pants",chara)
+pan.PantsTemplate = "http://www.roblox.com/asset/?id=1188789468"
+local gshi = Instance.new("ShirtGraphic",nil)
+gshi.Graphic = "http://www.roblox.com/asset/?id=114844135"
+
+--Sounds--
+function LoadSnd(id,loop,vol,pit)
+local snd = New("Sound",chara.Head,"Sound",{SoundId = "rbxassetid://"..id,Looped = loop,Volume = vol,Pitch = pit})
+return snd
+end
+--AtataSnd = LoadSnd(130767866,false,1,1)
+--DeadSnd = LoadSnd(992192914,false,1,1)
+Music = LoadSnd(1072454168,true,1,1)
+Music.Parent = chara
+
+--Play Sound in Part--
+function PlaySnd(snd,part,pitch,vol)
+local sound = Instance.new("Sound",part)
+sound.PlayOnRemove = true
+sound.SoundId = "rbxassetid://"..snd
+sound.PlaybackSpeed = pitch
+sound.Volume = vol
+sound:Destroy()
+end
+
+function CamShake(par,magni,env,dur)
+coroutine.wrap(function()
+for i=0,dur*60 do
+swait()
+hum.CameraOffset = Vector3.new(math.random(-(env*10),(env*10))/10,math.random(-(env*10),(env*10))/10,math.random(-(env*10),(env*10))/10)
+end
+hum.CameraOffset = Vector3.new(0,0,0)
+end)()
+end
+
+--function PlaySnd2(snd,part)
+--local sound = snd:Clone()
+--sound.Parent = part
+--sound.PlayOnRemove = true
+--sound:Destroy()
+--end
+
+maincol = "White"
+
+function CreateTrailObj(parent,color1,color2,ofsx,ofsz)
+local Att1 =  New("Attachment",parent,"Att1",{Position = Vector3.new(ofsx,parent.Size.Y/2,ofsz)})
+local Att2 =  New("Attachment",parent,"Att2",{Position = Vector3.new(ofsx,-(parent.Size.Y/2),ofsz)})
+local TEff = New("Trail",parent,"TrailEff",{Color = ColorSequence.new({ColorSequenceKeypoint.new(0,BrickColor.new(color1).Color),ColorSequenceKeypoint.new(1,BrickColor.new(color2).Color)}),Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,.5),NumberSequenceKeypoint.new(1,1)}),Attachment0 = Att1,Attachment1 = Att2,Enabled = false,Lifetime = .5,MinLength = .001})
+return TEff
+end
+
+RPunchT = CreateTrailObj(chara["Right Arm"],"White","White",0,0)
+LPunchT = CreateTrailObj(chara["Left Arm"],"White","White",0,0)
+RKickT = CreateTrailObj(chara["Right Leg"],"White","White",0,0)
+LKickT = CreateTrailObj(chara["Left Leg"],"White","White",0,0)
+
+--Punch Hit Effect--
+function PunchEff(pos)
+local p = Instance.new("Part",game.Workspace)
+p.Size = Vector3.new(1,1,1)
+p.BrickColor = BrickColor.new(maincol)
+p.Material = "Neon"
+p.Anchored = true
+p.CanCollide = false
+p.CFrame = pos
+CamShake(p,10,.7,.1)
+local pm = Instance.new("SpecialMesh",p)
+pm.MeshType = "Sphere"
+coroutine.resume(coroutine.create(function()
+for i = 0,1,.05 do
+swait()
+p.Transparency = i
+pm.Scale = Vector3.new(2*i,2*i,2*i)
+end
+swait()
+p:Destroy()
+end))
+end
+function BigHitEff(pos)
+for i = 1, 5 do
+local p = Instance.new("Part",game.Workspace)
+p.Size = Vector3.new(1,1,1)
+p.BrickColor = BrickColor.new("White")
+p.Material = "Neon"
+p.Anchored = true
+p.CanCollide = false
+p.CFrame = pos * CFrame.fromEulerAnglesXYZ(math.random(0,math.rad(359)),math.random(0,math.rad(359)),math.random(0,math.rad(359)))
+local pm = Instance.new("SpecialMesh",p)
+pm.MeshType = "Sphere"
+pm.Scale = Vector3.new(.5,0,.5)
+local disp = coroutine.wrap(function()
+for i = 0,1,.05 do
+swait()
+p.Transparency = i
+pm.Scale = Vector3.new(2*i,2*i,2*i)
+end
+swait()
+p:Destroy()
+end)
+disp()
+local p = Instance.new("Part",game.Workspace)
+p.Size = Vector3.new(1,1,1)
+p.BrickColor = BrickColor.new("White")
+p.Material = "Neon"
+p.Anchored = true
+p.CanCollide = false
+p.CFrame = pos * CFrame.fromEulerAnglesXYZ(math.random(0,math.rad(359)),math.random(0,math.rad(359)),math.random(0,math.rad(359)))
+CamShake(p,10,1,.4)
+local pm = Instance.new("SpecialMesh",p)
+pm.MeshType = "Sphere"
+pm.Scale = Vector3.new(.5,.5,.5)
+local disp = coroutine.wrap(function()
+for i = 0,1,.05 do
+swait()
+p.Transparency = i
+pm.Scale = Vector3.new(.5*i,.5*i,.5*i)
+pm.Offset = Vector3.new(0,8*i,0)
+end
+swait()
+p:Destroy()
+end)
+disp()
+end
+end
+
+--Damage Function--
+function dealdmg(dude)
+if dude ~= chara and dude:IsDescendantOf(chara) == false then
+if dude:FindFirstChild("IsAlreadyDead") == nil then
+local vall = Instance.new("ObjectValue",dude)
+vall.Name = "IsAlreadyDead"
+local faceg = Instance.new("BillboardGui",dude)
+faceg.Name = "IsAlreadyDeadBillBoardGui"
+faceg.Size = UDim2.new(4,0,4,0)
+faceg.Adornee = dude.Head
+faceg.StudsOffset = Vector3.new(0,5.5,0)
+local simgl = Instance.new("ImageLabel",faceg)
+simgl.Position = UDim2.new(0,0,0,0)
+simgl.Size = UDim2.new(1,0,1,0)
+simgl.Image = "http://www.roblox.com/asset/?id=47110473" 
+simgl.BackgroundTransparency = 1
+end
+local vall = Instance.new("ObjectValue",dude)
+vall.Name = "IsHit"
+debby:AddItem(vall,.01)
+local bfos = Instance.new("BodyVelocity",dude.Head)
+bfos.P = 200000
+bfos.MaxForce = Vector3.new(bfos.P,bfos.P,bfos.P)
+bfos.Velocity = Vector3.new(0,0,0) --+ chara.HumanoidRootPart.CFrame.lookVector * kbx
+game.Debris:AddItem(bfos,.5)
+end
+end
+
+--Explode Hitbox--
+function ExHitbox(rad,pos,damage,env,toim,kby,kbx)
+local E = Instance.new("Explosion") 
+E.Position = pos
+E.Parent = game.Workspace
+E.BlastRadius = rad
+E.BlastPressure = 0
+E.Visible = false
+E.Hit:connect(function(hit)
+if hit.Parent:FindFirstChildOfClass("Humanoid")~=nil then
+dealdmg(hit.Parent,damage,env,toim,kby,kbx)
+end
+end)
+end
+function PExHitbox()
+local E = Instance.new("Explosion",workspace) 
+E.Position = chara.HumanoidRootPart.Position + chara.HumanoidRootPart.CFrame.lookVector*3
+E.BlastRadius = 1
+E.BlastPressure = 0
+E.Visible = false
+debby:AddItem(E,.05)
+E.Hit:connect(function(hit)
+if hit.Parent:FindFirstChildOfClass("Humanoid")~=nil then
+if punchactive == true then
+if hit.Parent:FindFirstChildOfClass("Humanoid") ~= nil and hit.Parent ~= chara and hit.Parent:FindFirstChild("IsHit")==nil and hit.Parent.Name ~= "Salvo_Starly" then
+dealdmg(hit.Parent)
+PlaySnd(386946017,hit.Parent.Head,math.random(8,12)/10,1)
+PunchEff(hit.CFrame + Vector3.new(math.random(-1,1),math.random(-1,1),math.random(-1,1)))
+end
+end
+if hpunchactive == true then
+if hit.Parent:FindFirstChildOfClass("Humanoid") ~= nil and hit.Parent ~= chara and hit.Parent.Name ~= "Salvo_Starly" then
+dealdmg(hit.Parent)
+PlaySnd(200633636,hit.Parent.Head,1,1)
+BigHitEff(hit.CFrame)
+coroutine.resume(coroutine.create(function()
+if hit.Parent.Head:FindFirstChildOfClass("BodyVelocity") then
+hit.Parent.Head:FindFirstChildOfClass("BodyVelocity"):Destroy()
+end
+local bfos = Instance.new("BodyVelocity",hit.Parent.Head)
+bfos.P = 100000
+bfos.MaxForce = Vector3.new(bfos.P,bfos.P,bfos.P)
+bfos.Velocity = chara.HumanoidRootPart.CFrame.lookVector * 100
+game.Debris:AddItem(bfos,.5)
+hit.Parent:FindFirstChildOfClass("Humanoid").PlatformStand = true
+swait(2)
+hit.Parent:FindFirstChildOfClass("Humanoid").PlatformStand = false
+end))
+end
+end
+end
+end)
+end
+
+--Punch Touch--
+dela = .05
+punchactive = false
+function punchhit(hit)
+if punchactive == true then
+if hit.Parent:FindFirstChildOfClass("Humanoid") ~= nil and hit.Parent ~= chara and hit.Parent:FindFirstChild("IsHit")==nil then
+dealdmg(hit.Parent)
+PlaySnd(153092227,hit.Parent.Head,1,1)
+PunchEff(hit.CFrame)
+end
+end
+end
+Emit2Part.Touched:connect(punchhit)
+EmitPart.Touched:connect(punchhit)
+
+--Chat Function--
+function chatfunc(text,dude)
+coroutine.resume(coroutine.create(function()
+if dude:FindFirstChild("TalkingBillBoard")~= nil then
+dude:FindFirstChild("TalkingBillBoard"):destroy()
+end
+local naeeym2 = Instance.new("BillboardGui",chara)
+naeeym2.Size = UDim2.new(0,100,0,40)
+naeeym2.StudsOffset = Vector3.new(0,3,0)
+naeeym2.Adornee = dude.Head
+naeeym2.Name = "TalkingBillBoard"
+local tecks2 = Instance.new("TextLabel",naeeym2)
+tecks2.BackgroundTransparency = 1
+tecks2.BorderSizePixel = 0
+tecks2.Text = ""
+tecks2.Font = "Fantasy"
+tecks2.FontSize = "Size24"
+tecks2.TextStrokeTransparency = 0
+tecks2.TextColor3 = Color3.new(1,1,1)
+tecks2.TextStrokeColor3 = Color3.new(0,0,0)
+tecks2.Size = UDim2.new(1,0,0.5,0)
+coroutine.resume(coroutine.create(function()
+for i = 1,string.len(text),1 do
+tecks2.Text = string.sub(text,1,i)
+swait(0.01)
+end
+swait(1)
+for i = 1, 5 do
+swait(.01)
+tecks2.Position = tecks2.Position - UDim2.new(0,0,.05,0)
+tecks2.TextStrokeTransparency = tecks2.TextStrokeTransparency +.2
+tecks2.TextTransparency = tecks2.TextTransparency + .2
+end
+naeeym2:Destroy()
+end))
+end))
+end
+
+--function onChatted(msg)
+--chatfunc(msg,chara)
+--end
+--player.Chatted:connect(onChatted)
+
+--Clerp Animations--
+TC = chara.HumanoidRootPart.RootJoint
+HC = chara.Torso.Neck
+RAC = chara.Torso["Right Shoulder"]
+LAC = chara.Torso["Left Shoulder"]
+RLC = chara.Torso["Right Hip"]
+LLC = chara.Torso["Left Hip"]
+TCF = CFrame.new(0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 1, -0)
+HCF = CFrame.new(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 1, -0)
+RACF = CFrame.new(1, 0.5, 0, 0, 0, 1, 0, 1, -0, -1, 0, 0)
+LACF = CFrame.new(-1, 0.5, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0)
+RLCF = CFrame.new(1, -1, 0, 0, 0, 1, 0, 1, -0, -1, 0, 0)
+LLCF = CFrame.new(-1, -1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0)
+RWF = CFrame.new(-1.5, 0, 0) * CFrame.fromEulerAnglesXYZ(0,0,0)
+LWF = CFrame.new(1.5, 0, 0) * CFrame.fromEulerAnglesXYZ(0,0,0)
+RLWF = CFrame.new(-.5, 2, 0) * CFrame.fromEulerAnglesXYZ(0,0,0)
+LLWF = CFrame.new(.5, 2, 0) * CFrame.fromEulerAnglesXYZ(0,0,0)
+grp = Instance.new("Model",chara)
+RW = nil
+LW = nil
+RLW = nil
+LLW = nil
+
+function AddLegWelds()
+RLW = Instance.new("Weld",chara["Right Leg"])
+RLW.Part1 = HC.Parent
+RLW.Part0 = chara["Right Leg"]
+RLW.C0 = RLWF
+LLW = Instance.new("Weld",chara["Left Leg"])
+LLW.Part1 = HC.Parent
+LLW.Part0 = chara["Left Leg"]
+LLW.C0 = LLWF
+end
+
+function AddArmWelds()
+RW = Instance.new("Weld",HC.Parent)
+RW.Part1 = HC.Parent
+RW.Part0 = chara["Right Arm"]
+RW.C0 = RWF
+LW = Instance.new("Weld",HC.Parent)
+LW.Part1 = HC.Parent
+LW.Part0 = chara["Left Arm"]
+LW.C0 = LWF
+end
+
+function DestroyLegWelds()
+RLC = New("Motor6D",chara.Torso,"Right Hip",{Part0 = chara.Torso,Part1 = chara["Right Leg"],C0 = CFrame.new(1, -1, 0, 0, 0, 1, 0, 1, -0, -1, 0, 0),C1 = CFrame.new(0.5, 1, 0, 0, 0, 1, 0, 1, -0, -1, 0, 0),})
+LLC = New("Motor6D",chara.Torso,"Left Hip",{Part0 = chara.Torso,Part1 = chara["Left Leg"],C0 = CFrame.new(-1, -1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0),C1 = CFrame.new(-0.5, 1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0),})
+RLW:Destroy()
+LLW:Destroy()
+end
+
+function DestroyArmWelds()
+RAC = New("Motor6D",chara.Torso,"Right Shoulder",{Part0 = chara.Torso,Part1 = chara["Right Arm"],C0 = CFrame.new(1, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -0, -0),C1 = CFrame.new(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -0, -0)})
+LAC = New("Motor6D",chara.Torso,"Left Shoulder",{Part0 = chara.Torso,Part1 = chara["Left Arm"],C0 = CFrame.new(-1, 0.5, 0, -0, -0, -1, 0, 1, 0, 1, 0, 0),C1 = CFrame.new(0.5, 0.5, 0, -0, -0, -1, 0, 1, 0, 1, 0, 0)})
+RW:Destroy()
+LW:Destroy()
+end
+
+function clerp(a,b,c)
+return a:lerp(b,c)
+end
+
+ITCF = TCF
+IHCF = HCF
+IRWF = RWF
+ILWF = LWF
+
+function res()
+TC.C0 = ITCF
+HC.C0 = IHCF
+end
+res()
+
+--Teleport--
+function Teleport()
+PlaySnd(153613030,chara.Head,1,1)
+for i, v in pairs(chara:GetChildren()) do
+if v:IsA("BasePart") then
+local trace = Instance.new("Part",game.Workspace)
+trace.Size = v.Size
+trace.Position = v.Position
+trace.CFrame = v.CFrame
+trace.Anchored = true
+trace.CanCollide = false
+trace.BrickColor = BrickColor.new("White")
+trace.Material = "Neon"
+coroutine.resume(coroutine.create(function()
+for i = 0,1,.1 do
+swait()
+trace.Transparency = i
+end
+trace:Destroy()
+end))
+end
+end
+chara.Torso.CFrame = mouse.Hit + Vector3.new(0,3,0)
+end
+
+--Keys--
+holdingdown = false
+function onButton1Down()
+holdingdown = true
+if del == false then
+del = true
+AddArmWelds()
+for i = 0,.6,.1 do
+swait()
+TC.C0 = clerp(TCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),ITCF,.6-i)
+HC.C0 = clerp(HCF * CFrame.fromEulerAnglesXYZ(math.rad(-10),0,0),IHCF,.6-i)
+RW.C0 = clerp(RWF * CFrame.fromEulerAnglesXYZ(0,0,math.rad(-20)),IRWF,.6-i)
+LW.C0 = clerp(LWF * CFrame.fromEulerAnglesXYZ(0,0,math.rad(20)),ILWF,.6-i)
+end
+punchactive = true
+local AtataSnd = LoadSnd(130767866,false,1,1)
+AtataSnd:Play() --PlaySnd(130767866,chara.Head,1,1)
+chatfunc("ATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATA",chara)
+local punches = 0
+repeat
+swait()
+RW.C0 = (RWF + Vector3.new(math.rad(-10,10),math.random(1,2),math.random(0,1))) * CFrame.fromEulerAnglesXYZ(math.rad(-100+math.random(-15,15)),math.rad(math.random(-15,15)),math.rad(math.random(-15,15)))
+LW.C0 = (LWF + Vector3.new(math.rad(-10,10),math.random(1,2),math.random(0,1))) * CFrame.fromEulerAnglesXYZ(math.rad(-100+math.random(-15,15)),math.rad(math.random(-15,15)),math.rad(math.random(-15,15)))
+TC.C0 = TCF * CFrame.fromEulerAnglesXYZ(math.rad(10),math.rad(math.random(-10,10)),0)
+coroutine.resume(coroutine.create(function()
+local part1 = Instance.new("Part",workspace)
+part1.Size = Vector3.new(1,2,1)
+part1.CanCollide = false
+part1.Anchored = true
+part1.BrickColor = chara["Right Arm"].BrickColor
+part1.CFrame = chara["Right Arm"].CFrame
+local part2 = Instance.new("Part",workspace)
+part2.Size = Vector3.new(1,2,1)
+part2.CanCollide = false
+part2.Anchored = true
+part2.BrickColor = chara["Left Arm"].BrickColor
+part2.CFrame = chara["Left Arm"].CFrame
+if chara:FindFirstChildOfClass("CharacterMesh") then
+local mh = Instance.new("SpecialMesh",part1)
+mh.MeshId = "rbxassetid://279174886"
+mh.Scale = Vector3.new(1.1,1.1,1.1)
+local mh = Instance.new("SpecialMesh",part2)
+mh.MeshId = "rbxassetid://279174949"
+mh.Scale = Vector3.new(1.1,1.1,1.1)
+end
+coroutine.resume(coroutine.create(function()
+for i = .4,1,.1 do
+swait()
+part1.Transparency = i
+part2.Transparency = i
+end
+part1:Destroy()
+part2:Destroy()
+end))
+end))
+PExHitbox()
+punches = punches + 1
+until holdingdown == false or punches >= 230
+punchactive = false
+LW.C0 = ILWF
+AtataSnd:Stop()
+AtataSnd.TimePosition = 7.5
+AtataSnd:Play()
+hpunchactive = true
+chatfunc("WATAU!",chara)
+for i = 0,.6,.2 do
+swait()
+TC.C0 = clerp((TCF - Vector3.new(0,0,2)) * CFrame.fromEulerAnglesXYZ(math.rad(10),math.rad(-10),0),TCF * CFrame.fromEulerAnglesXYZ(math.rad(-10),math.rad(10),0),.6-i)
+HC.C0 = clerp(HCF * CFrame.fromEulerAnglesXYZ(math.rad(-10),math.rad(10),0),HCF * CFrame.fromEulerAnglesXYZ(math.rad(10),math.rad(-10),0),.6-i)
+RW.C0 = clerp((RWF + Vector3.new(0,1,-1)) * CFrame.fromEulerAnglesXYZ(math.rad(-100),0,0),(RWF + Vector3.new(0,1,0)) * CFrame.fromEulerAnglesXYZ(math.rad(-100),0,0),.6-i)
+end
+PExHitbox()
+swait()
+TC.C0 = (TCF - Vector3.new(0,0,2)) * CFrame.fromEulerAnglesXYZ(math.rad(10),math.rad(-10),0)
+HC.C0 = HCF * CFrame.fromEulerAnglesXYZ(math.rad(-10),math.rad(10),0)
+RW.C0 = (RWF + Vector3.new(0,1,1)) * CFrame.fromEulerAnglesXYZ(math.rad(-100),0,0)
+swait(.2)
+hpunchactive = false
+punchactive = false
+swait(.5)
+for i = 0,.6,.1 do
+swait()
+TC.C0 = clerp((TCF - Vector3.new(0,0,2)) * CFrame.fromEulerAnglesXYZ(math.rad(10),math.rad(-10),0),ITCF,.4+i)
+HC.C0 = clerp(HCF * CFrame.fromEulerAnglesXYZ(math.rad(-10),math.rad(10),0),IHCF,.4+i)
+RW.C0 = clerp((RWF + Vector3.new(0,1,1)) * CFrame.fromEulerAnglesXYZ(math.rad(-100),0,0),IRWF,.4+i)
+LW.C0 = ILWF
+end
+DestroyArmWelds()
+walking = false
+AtataSnd.TimePosition = 0
+debby:AddItem(AtataSnd,2)
+del = false
+end
+end
+function onButton2Down()
+if del == false then
+del = true
+AddArmWelds()
+ShadowHead.Transparency = 0
+for i = 0,.6,.05 do
+swait()
+TC.C0 = ITCF
+HC.C0 = clerp(IHCF,HCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),.4+i)
+RW.C0 = clerp(IRWF,(RWF + Vector3.new(0,.5,.5)) * CFrame.fromEulerAnglesXYZ(math.rad(-90),0,0),.4+i)
+LW.C0 = ILWF
+end
+RW.C0 = (RWF + Vector3.new(0,.5,.5)) * CFrame.fromEulerAnglesXYZ(math.rad(-90),0,0)
+local DeadSnd = LoadSnd(992192914,false,1,1)
+DeadSnd:Play() --PlaySnd(992192914,workspace,1,1)
+chatfunc("You are already dead.",chara)
+swait(2.8)
+local dudes = {}
+for i, v in pairs(workspace:GetDescendants()) do
+if v:IsA("ObjectValue") and v.Name == "IsAlreadyDead" and v.Parent:FindFirstChildOfClass("Humanoid") then
+table.insert(dudes,v.Parent)
+end
+end
+if #dudes == 0 then
+DeadSnd:Destroy()
+end
+for no = 1, #dudes do
+coroutine.resume(coroutine.create(function()
+dudes[no].IsAlreadyDead:Destroy()
+dudes[no].IsAlreadyDeadBillBoardGui:Destroy()
+if dudes[no]:FindFirstChildOfClass("Humanoid").Health > 1 then
+chatfunc("What?!",dudes[no])
+end
+debby:AddItem(DeadSnd,6)
+swait(.5)
+for i, v in pairs(dudes[no]:GetChildren()) do
+if v:IsA("BasePart") then
+v.Anchored = true
+end
+end
+for oa = 1, 60 do
+local effp = Instance.new("Part",workspace)
+effp.CanCollide = false
+effp.BottomSurface = 0
+effp.TopSurface = 0
+effp.Size = Vector3.new(1,1,1)
+effp.Anchored = true
+effp.CFrame = (dudes[no].Head.CFrame * CFrame.new(0,-1.5,0)) * CFrame.fromEulerAnglesXYZ(math.rad(math.random(0,359)),math.rad(math.random(0,359)),math.rad(math.random(0,359)))
+effp.Material = "Neon"
+effp.BrickColor = BrickColor.new("White")
+local efm = Instance.new("BlockMesh",effp)
+CamShake(effp,20,.4,.1)
+coroutine.resume(coroutine.create(function()
+for a = 0,1,.05 do
+efm.Scale = Vector3.new(1-a,1000*a,1-a)
+effp.Transparency = a
+swait()
+end
+effp:Destroy()
+end))
+swait(.05)
+end
+dudes[no]:BreakJoints()
+for oa = 1, 5 do
+local effp = Instance.new("Part",workspace)
+effp.CanCollide = false
+effp.BottomSurface = 0
+effp.TopSurface = 0
+effp.Size = Vector3.new(1,1,1)
+effp.Anchored = true
+effp.CFrame = (dudes[no].Head.CFrame * CFrame.new(0,-1.5,0)) * CFrame.fromEulerAnglesXYZ(math.rad(math.random(0,359)),math.rad(math.random(0,359)),math.rad(math.random(0,359)))
+effp.Material = "Neon"
+effp.BrickColor = BrickColor.new("White")
+local efm = Instance.new("BlockMesh",effp)
+CamShake(effp,20,1,.4)
+coroutine.resume(coroutine.create(function()
+for a = 0,1,.01 do
+efm.Scale = Vector3.new(2-a*2,1000*a,2-a*2)
+effp.Transparency = a
+swait()
+end
+effp:Destroy()
+end))
+end
+for i, v in pairs(dudes[no]:GetChildren()) do
+if v:IsA("BasePart") then
+v.Anchored = false
+end
+end
+for a, v in pairs(dudes[no]:GetChildren()) do
+if v:IsA("BasePart") then
+local bodpos = Instance.new("BodyPosition",v)
+bodpos.Position = v.Position + Vector3.new(math.random(-5,5),math.random(-5,5),math.random(-5,5))
+v.BrickColor = BrickColor.new("Really white")
+v.Material = "Neon"
+end
+end
+for d = 0,1,.1 do
+for i, v in pairs(dudes[no]:GetChildren()) do
+if v:IsA("BasePart") then
+v.Transparency = d
+swait()
+end
+end
+end
+for i, v in pairs(dudes[no]:GetChildren()) do
+if v:IsA("BasePart") then
+v:Destroy()
+end
+end
+end))
+end
+for i = 0,.6,.05 do
+swait()
+TC.C0 = ITCF
+HC.C0 = clerp(IHCF,HCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),.6-i)
+RW.C0 = clerp(IRWF,(RWF + Vector3.new(0,.5,.5)) * CFrame.fromEulerAnglesXYZ(math.rad(-90),0,0),.6-i)
+LW.C0 = ILWF
+end
+ShadowHead.Transparency = 1
+DestroyArmWelds()
+walking = false
+del = false
+end
+end
+
+rage = false
+if mouse then
+mouse.Button1Down:connect(onButton1Down)
+mouse.Button1Up:connect(function()
+holdingdown = false
+end)
+mouse.KeyDown:connect(function(key)
+if key == "z" then
+onButton2Down()
+elseif key == "f" then
+if rage == false then
+for i, v in pairs(chara:GetDescendants()) do
+if v.Name == "beter" then
+v.Enabled = true
+end
+end
+rage = true
+elseif rage == true then
+for i, v in pairs(chara:GetDescendants()) do
+if v.Name == "beter" then
+v.Enabled = false
+end
+end
+rage = false
+end
+elseif key == "q" then
+Teleport()
+elseif key == "m" then
+if Music.IsPlaying == true then
+Music:Stop()
+elseif Music.IsPlaying == false then
+Music:Play()
+end
+elseif key == "k" then
+Music.SoundId = "rbxassetid://548642448"
+elseif key == "l" then
+Music.SoundId = "rbxassetid://1072454168"
+end
+end)
+--mouse.KeyUp:connect(onKeyUp)
+end
+
+--Loop Function--
+walking = false
+toim = 0
+while true do
+swait()
+hum.Name = "hoomanood"
+hum.Health = math.huge
+hum.MaxHealth = math.huge
+--if gkeydown == true then
+--coroutine.resume(coroutine.create(function()
+--onButton1Down()
+--end))
+--end
+toim = toim + .1
+if del == false then attacking = false elseif del == true then attacking = true end
+torvel = (chara.HumanoidRootPart.Velocity*Vector3.new(1,0,1)).magnitude
+if torvel < 1 and walking == true and del == false and atkd == false and attacking == false then
+for i = 0,1,.25 do
+swait()
+if del == false and attacking == false then
+TC.C0 = clerp(TCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),ITCF,i)
+HC.C0 = clerp(HCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),IHCF,i)
+--RW.C0 = IRWF
+--LW.C0 = IRWF
+end
+end
+walking = false
+elseif torvel > 1 and walking == false and del == false and atkd == false and attacking == false then
+for i = 0,1,.25 do
+swait()
+if del == false and attacking == false then
+TC.C0 = clerp(TCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),ITCF,1-i)
+HC.C0 = clerp(HCF * CFrame.fromEulerAnglesXYZ(math.rad(10),0,0),IHCF,1-i)
+--RW.C0 = IRWF
+--LW.C0 = ILWF
+end
+end
+walking = true
+else
+end
+end
