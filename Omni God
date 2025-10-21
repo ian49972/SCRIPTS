@@ -815,7 +815,7 @@ GroundWave = function()
                  task.wait(2)
 
 local sa2 = Instance.new("Sound",Torso)
-sa2.SoundId = "rbxassetid://393621716"
+sa2.SoundId = getcustomasset("OmniForm.mp3")
 sa2.Pitch = 1
 sa2.Volume = 10
 sa2.Looped = false
@@ -4435,4 +4435,5 @@ wait(0.04)
 part2.Texture = "http://www.roblox.com/asset/?id=358965664" 
 wait(0.04)
 end
+
 
