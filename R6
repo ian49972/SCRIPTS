@@ -1,0 +1,125 @@
+function oof()
+    local Players = game:GetService("Players")
+    local plr = Players.LocalPlayer
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    
+    -- แปลง R15 → R6
+    if char:FindFirstChild("Humanoid") and char.Humanoid.RigType == Enum.HumanoidRigType.R15 then
+        local desc = Players:GetHumanoidDescriptionFromUserId(plr.CharacterAppearanceId)
+        local newChar = Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R6)
+        newChar.Name = plr.Name
+
+        if not newChar.PrimaryPart and newChar:FindFirstChild("HumanoidRootPart") then
+            newChar.PrimaryPart = newChar:FindFirstChild("HumanoidRootPart")
+        end
+        if newChar.PrimaryPart and char:FindFirstChild("HumanoidRootPart") then
+            newChar:SetPrimaryPartCFrame(char.PrimaryPart.CFrame)
+        end
+
+        char:Destroy()
+        newChar.Parent = workspace
+        plr.Character = newChar
+
+        local cam = workspace.CurrentCamera
+        cam.CameraSubject = newChar:WaitForChild("Humanoid")
+        cam.CameraType = Enum.CameraType.Custom
+    end
+
+    local c = workspace:WaitForChild(plr.Name)
+    local Humanoid = c:WaitForChild("Humanoid")
+    local pose = "Standing"
+    local currentAnimTrack = nil
+    local currentAnimSpeed = 1.0
+
+    -- Animation assets R6
+    local anims = {
+        idle = "http://www.roblox.com/asset/?id=180435571",
+        walk = "http://www.roblox.com/asset/?id=180426354",
+        jump = "http://www.roblox.com/asset/?id=125750702",
+        fall = "http://www.roblox.com/asset/?id=180436148"
+    }
+
+    -- เล่น Animation
+    local function playAnim(animId, speed)
+        if currentAnimTrack then
+            currentAnimTrack:Stop()
+            currentAnimTrack:Destroy()
+        end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = animId
+        currentAnimTrack = Humanoid:LoadAnimation(anim)
+        currentAnimTrack.Priority = Enum.AnimationPriority.Core
+        currentAnimTrack:Play(0.1)
+        if speed then
+            currentAnimTrack:AdjustSpeed(speed)
+        else
+            currentAnimTrack:AdjustSpeed(1.0)
+        end
+    end
+
+    -- Event functions
+    Humanoid.Running:Connect(function(speed)
+        if speed > 0.01 then
+            playAnim(anims.walk, speed / Humanoid.WalkSpeed)
+            pose = "Running"
+        else
+            playAnim(anims.idle)
+            pose = "Standing"
+        end
+    end)
+
+    Humanoid.Jumping:Connect(function()
+        playAnim(anims.jump)
+        pose = "Jumping"
+    end)
+
+    Humanoid.FreeFalling:Connect(function()
+        if pose ~= "Jumping" then
+            playAnim(anims.fall)
+            pose = "FreeFall"
+        end
+    end)
+
+    Humanoid.Died:Connect(function()
+        pose = "Dead"
+    end)
+
+    -- Initialize idle
+    playAnim(anims.idle)
+    pose = "Standing"
+end
+
+oof()
+
+-- Respawn KeyInput
+local UIS = game:GetService("UserInputService")
+local plr = game.Players.LocalPlayer
+local deathPos = nil
+
+plr.CharacterAdded:Connect(function(char)
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    if deathPos then
+        hrp.CFrame = deathPos
+    end
+end)
+
+while true do wait(0.1)
+    local char = plr.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if char.Humanoid.Health <= 0 then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                deathPos = hrp.CFrame
+            end
+        end
+    end
+end
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Insert and deathPos then
+        local char = plr.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = deathPos
+        end
+    end
+end)
