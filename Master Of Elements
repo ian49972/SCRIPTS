@@ -4,8 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
 -----------//MASTER OF ELEMENTS\\-----------
 --[[Movelist
 Q = Water Barrier
@@ -5675,4 +5673,5 @@ end
 end)
 anims()
 warn("Four elements combined to make one, powerful force. Made by Supr14")
+
 
