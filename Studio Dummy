@@ -1,3 +1,10 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
 
 local folder = game:GetObjects('rbxassetid://10012397982')[1]
 folder.Parent = game.Players.LocalPlayer.Character
@@ -1066,3 +1073,4 @@ local weld2 = Instance.new('Weld',hat2)
 weld2.Part1 = hat2
 weld2.Part0 = chat
 weld2.C0 = CFrame.new(0,0,0)*CFrame.Angles(0,0,0)
+
