@@ -4,8 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
 --[[Nocturna_A._Alteriano_Night.Owl.Inc]]--
 
 local plr = game.Players.LocalPlayer
@@ -1481,4 +1479,5 @@ while true do
 		end
 	end
 end
+
 
