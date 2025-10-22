@@ -4,8 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
 --{{Linked Sword remake by SezHu. Made for Darkross. Whoever it is that spread this around, I hope you kill yourself.}}--
 
 local plr = game.Players.LocalPlayer
@@ -1397,4 +1395,5 @@ end
 		end
 	end	
 end
+
 
