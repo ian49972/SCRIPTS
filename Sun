@@ -1,3 +1,11 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
+
 --//====================================================\\--
 --||			   CREATED BY SHACKLUSTER
 --\\====================================================//--
@@ -1250,4 +1258,5 @@ end
 
 --//====================================================\\--
 --||			  		 END OF SCRIPT
+
 --\\====================================================//--
