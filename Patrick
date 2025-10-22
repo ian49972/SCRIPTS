@@ -4,6 +4,8 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
+task.wait(15)
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
