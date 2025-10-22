@@ -4,8 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
 writefile("Maxilito.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Maxilito.mp3"))
 
 local playerss = game:GetService("Players").LocalPlayer.Character
@@ -1607,6 +1605,7 @@ end)
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	cam =workspace.CurrentCamera
 end)
+
 
 
 
