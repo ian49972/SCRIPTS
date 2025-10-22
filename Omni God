@@ -1,3 +1,11 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
+
 writefile("OmniForm.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/OmniForm.mp3"))
 writefile("OmniSong.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/OmniSong.mp3"))
 
@@ -4436,3 +4444,4 @@ wait(0.04)
 part2.Texture = "http://www.roblox.com/asset/?id=358965664" 
 wait(0.04)
 end
+
