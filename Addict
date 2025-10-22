@@ -1,3 +1,10 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is recreated by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
 
 local script = game:GetObjects("rbxassetid://9504104358")[1]
 
@@ -2147,4 +2154,5 @@ while true do
 
 end
  
+
  
