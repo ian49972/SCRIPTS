@@ -1,3 +1,11 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is recreated by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
+
 -------------
 --Big Daddy--
 ----------------------------------------------------------------
@@ -1121,4 +1129,5 @@ CFrame.new(-0.650001526, -2.60271978, -0.268911421, 1, 0, 0, 0, 0.984807849, -0.
 end
 end
 end
+
 end
