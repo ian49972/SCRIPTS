@@ -1,3 +1,11 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+task.wait(15)
+
 local plr = game.Players.LocalPlayer
 if plr.Character then
     plr.Character.Name = "non"
@@ -4077,4 +4085,5 @@ LH.C0=clerp(LH.C0,CFrame.new(-0.500023842, -2.00007463, 4.76837215e-07+.4*math.c
 end
 end
 end
+
 end
