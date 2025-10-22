@@ -1,0 +1,173 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is recreated by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game.Workspace
+local RunService = game:GetService("RunService")
+
+local Object = game:GetObjects("rbxassetid://12102103065")[1]
+
+local patrick
+local attractedParts = {}
+
+local function isCharacterPart(obj)
+    local model = obj:FindFirstAncestorWhichIsA("Model")
+    return model and model:FindFirstChildOfClass("Humanoid") ~= nil
+end
+
+local function PatrickFunc(PlayerName)
+    local Character = LocalPlayer.Character
+    if Character then
+        local info = TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+        
+        local targetPos = Character:GetPivot()
+        patrick = Object.Patrick:Clone()
+        patrick.PatrickChar.Giver.Float.Patrick.Value = patrick
+        patrick:PivotTo(Character:GetPivot() + Vector3.new(0, -176.4, 0))
+        patrick.Parent = Workspace
+        
+        Lighting.TimeOfDay = 0
+        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+        
+        local Atmosphere = Lighting:FindFirstChildWhichIsA("Atmosphere")
+        if Atmosphere then
+            Atmosphere:Destroy()
+        end
+        
+        Atmosphere = Instance.new("Atmosphere")
+        Atmosphere.Parent = Lighting
+        
+        local tween = TweenService:Create(Atmosphere, info, {
+            Haze = 10,
+            Glare = .29,
+            Color = Color3.fromRGB(53, 0, 1),
+            Decay = Color3.fromRGB(92, 0, 2),
+            Density = 0.449
+        })
+        
+        local tween2 = TweenService:Create(patrick.PatrickChar, info, {
+            CFrame = targetPos + Vector3.new(0, 76.4, 0)
+        })
+        
+        local tween3 = TweenService:Create(Lighting, info, {
+            ClockTime = 0
+        })
+        
+        tween:Play()
+        tween2:Play()
+        
+        tween2.Completed:Connect(function()
+            patrick.PatrickChar.Giver.Disabled = false
+        end)
+        
+        local LaughSound = Object.Laughter:Clone()
+        local Song = Object.SongOfHealing:Clone()
+        
+        LaughSound.Parent = SoundService
+        Song.Parent = SoundService
+        
+        LaughSound:Play()
+        Song:Play()
+    end
+ end
+
+local max = 10
+for tries = 1, max do
+    local success = pcall(function()
+        StarterGui:SetCore("ResetButtonCallback", false)
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+    end)
+    if success then
+        break
+    end
+    task.wait(1)
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "GuiStuff"
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Enabled = false
+ScreenGui.Parent = LocalPlayer.PlayerGui
+
+local Black = Instance.new("Frame")
+Black.Name = "Frame"
+Black.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Black.BackgroundTransparency = 1
+Black.Size = UDim2.new(1, 0, 1, 0)
+Black.Parent = ScreenGui
+
+PatrickFunc(LocalPlayer.Name)
+
+task.wait(1)
+
+if not patrick then return end
+local mouth = patrick.PatrickChar.Mouth
+
+local function onPartDestroyed(obj)
+    if isCharacterPart(obj) and obj.Name == "HumanoidRootPart" and obj.Parent == LocalPlayer.Character then
+        ScreenGui.Enabled = true
+        local goal = {Transparency = 0}
+        local info = TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
+        local tween = TweenService:Create(Black, info, goal)
+        tween:Play()
+        task.wait(5)
+        game.Players.LocalPlayer:Kick("You got eaten")
+    end
+end
+
+coroutine.wrap(function()
+    local suckCharacters = false
+    task.delay(30, function()
+        suckCharacters = true
+    end)
+    while true do
+        task.wait(0.01)
+        local candidates = {}
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Parent and not obj:IsDescendantOf(patrick) and obj.Size.Magnitude < 20 and not table.find(attractedParts, obj) then
+                if isCharacterPart(obj) and not suckCharacters then continue end
+                local dist = (obj.Position - mouth.Position).Magnitude
+                table.insert(candidates, {obj = obj, dist = dist})
+            end
+        end
+        if #candidates > 0 then
+            table.sort(candidates, function(a, b) return a.dist < b.dist end)
+            local chosen = candidates[1].obj
+            if not chosen.Anchored then
+                chosen.Anchored = true
+            end
+            table.insert(attractedParts, chosen)
+        end
+    end
+end)()
+
+RunService.Heartbeat:Connect(function(dt)
+    for i = #attractedParts, 1, -1 do
+        local obj = attractedParts[i]
+        if obj and obj.Parent then
+            local objectPos = mouth.Position
+            local dist = (obj.Position - objectPos).Magnitude
+            if dist > 2 then
+                local lerpAlpha = 0.2 * dt * (100 / dist)
+                local newPos = obj.Position:Lerp(objectPos, lerpAlpha)
+                obj.CFrame = CFrame.new(newPos) * obj.CFrame.Rotation
+            else
+                onPartDestroyed(obj)
+                obj:Destroy()
+                table.remove(attractedParts, i)
+            end
+        else
+            table.remove(attractedParts, i)
+        end
+    end
+end)
