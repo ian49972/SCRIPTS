@@ -4,8 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
 local plr = game.Players.LocalPlayer
 if plr.Character then
     plr.Character.Name = "non"
@@ -2953,6 +2951,7 @@ local TiltVelocity = CFrame.new(rootPart.CFrame:vectorToObjectSpace(rootPart.Vel
 			Head_Weld.C0 	= clerp(Head_Weld.C0, c_new(0, 1.5 + math.sin(sine/7.5)/15, 0 + math.sin(sine/7.5)/15) * c_angles(math.rad(0) - math.sin(sine/7.5)/15,math.sin((rootPart.RotVelocity.Y/2.5))/2, math.sin((rootPart.RotVelocity.Y/15))/2), 0.15)	
 	end
 end)
+
 
 
 
