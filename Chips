@@ -4,9 +4,6 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
 Duration = 15;
 
-task.wait(15)
-
-
 -----------------------
 --[[ Name : Chips ]]--
 --[[ Description : I think I found my specialty in scripts ]]--
@@ -1661,4 +1658,5 @@ end
 -------------------------------------------------------
 --End Animations And Script--
 -------------------------------------------------------
+
 
