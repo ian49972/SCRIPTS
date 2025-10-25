@@ -19,7 +19,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 		player:Destroy()
 	end
 end
-local fr
+
 Players.PlayerAdded:Connect(function(player)
 	if player ~= LocalPlayer then
 		task.defer(function()
