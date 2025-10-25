@@ -30,41 +30,44 @@ end)
 
 local Players = game:GetService("Players")
 
-local player = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
-local function createSound(file)
-	local s = Instance.new("Sound")
-	s.SoundId = getcustomasset(file)
-	s.Volume = 1
-	s.Looped = false
-	s.Parent = workspace
-	return s
+local sound1 = Instance.new("Sound")
+sound1.SoundId = getcustomasset("Deter.mp3")
+sound1.Volume = 1
+sound1.Looped = false
+sound1.Parent = workspace
+
+local sound2 = Instance.new("Sound")
+sound2.SoundId = getcustomasset("mination.mp3")
+sound2.Volume = 1
+sound2.Looped = false
+sound2.Parent = workspace
+
+local function playLoop()
+	task.spawn(function()
+		while character and humanoid.Health > 0 do
+			sound1:Play()
+			sound1.Ended:Wait()
+			if humanoid.Health <= 0 then break end
+
+			sound2:Play()
+			sound2.Ended:Wait()
+			if humanoid.Health <= 0 then break end
+		end
+	end)
 end
 
-local deter = createSound("Deter.mp3")
-local mination = createSound("mination.mp3")
-
-local running = true
-
-task.spawn(function()
-	while running do
-		deter:Play()
-		deter.Ended:Wait()as d
-
-		if not running then break end
-		mination:Play()
-		mination.Ended:Wait()
-	end
-end)
+playLoop()
 
 humanoid.Died:Connect(function()
-	running = false
-	deter:Stop()
-	mination:Stop()
-	deter:Destroy()
-	mination:Destroy()
+	sound1:Stop()
+	sound2:Stop()
+	sound1:Destroy()
+	sound2:Destroy()
 end)
 
 plr = game.Players.LocalPlayer
