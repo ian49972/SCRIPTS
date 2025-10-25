@@ -1976,7 +1976,7 @@ uis.InputBegan:Connect(function(input, gameProcessed)
         elseif input.KeyCode == Enum.KeyCode.R then
             earthquake()
         elseif input.KeyCode == Enum.KeyCode.Z then
-              run()
+              warn(Ability blocked)
         elseif input.KeyCode == Enum.KeyCode.F then
             ultrastab()
         elseif input.KeyCode == Enum.KeyCode.N then
