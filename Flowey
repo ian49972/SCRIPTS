@@ -1,6 +1,9 @@
- local Object = game:GetObjects("rbxassetid://5931148647")[1]  
+local Object = game:GetObjects("rbxassetid://5931148647")[1]  
 Object.Parent = game.Workspace  
 script = Object.Flowey
+
+writefile("Flowey.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Flowey.mp3"))
+writefile("Finale.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Finale.mp3"))
 
 local UIS = game:GetService("UserInputService")
 local sound = Instance.new("Sound")
@@ -27,7 +30,7 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
-Player = game:GetService("Players").LocalPlayer
+Player = game.Players.LocalPlayer
 PlayerGui = Player.PlayerGui
 Cam = workspace.CurrentCamera
 Backpack = Player.Backpack
