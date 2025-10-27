@@ -1,3 +1,4 @@
+writefile("Remember_ma-.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Remember_ma-.mp3"))
 
 --// SHORTCUTS \\--
 local SCRIPTUTIL = game:GetObjects("rbxassetid://5276526474")[1]
