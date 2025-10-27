@@ -15,7 +15,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 		player:Destroy()
 	end
 end
-local fr
+
 Players.PlayerAdded:Connect(function(player)
 	if player ~= LocalPlayer then
 		task.defer(function()
@@ -50,7 +50,7 @@ end)
 
 task.wait(1)
 
-Player = game:GetService("Players").LocalPlayer
+Player = game.Players.LocalPlayer
 PlayerGui = Player.PlayerGui
 Cam = workspace.CurrentCamera
 Backpack = Player.Backpack
