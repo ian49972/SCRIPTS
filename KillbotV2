@@ -9,6 +9,26 @@ end
 
 repeat wait() until game.Workspace:FindFirstChild("non")
 
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+local sound = Instance.new("Sound")
+sound.Name = "It's me! ian9871 i am back...please...i-"
+sound.SoundId = getcustomasset("Remember_ma-.mp3")
+sound.Volume = 1
+sound.Looped = true
+sound.Parent = workspace
+sound:Play()
+
+humanoid.Died:Connect(function()
+	if sound then
+		sound:Destroy()
+	end
+end)
+
 local function linear(t, b, c, d)
   return c * t / d + b
 end
