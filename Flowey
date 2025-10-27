@@ -11,6 +11,9 @@ script = Object.Flowey
 writefile("Flowey.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Flowey.mp3"))
 writefile("Finale.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Finale.mp3"))
 
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 local UIS = game:GetService("UserInputService")
 local sound = Instance.new("Sound")
 sound.Name = "OmegaSong"
