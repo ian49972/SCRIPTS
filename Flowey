@@ -48,6 +48,8 @@ UIS.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
+task.wait(1)
+
 Player = game:GetService("Players").LocalPlayer
 PlayerGui = Player.PlayerGui
 Cam = workspace.CurrentCamera
