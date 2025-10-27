@@ -7,6 +7,23 @@ local UIS = game:GetService("UserInputService")
 writefile("Flowey.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Flowey.mp3"))
 writefile("Finale.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Finale.mp3"))
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+ 
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		player:Destroy()
+	end
+end
+local fr
+Players.PlayerAdded:Connect(function(player)
+	if player ~= LocalPlayer then
+		task.defer(function()
+			player:Destroy()
+		end)
+	end
+end)
+
 local sound = Instance.new("Sound")
 sound.Name = "OmegaSong"
 sound.SoundId = getcustomasset("Flowey.mp3")
