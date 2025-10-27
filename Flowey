@@ -3,6 +3,10 @@ Object.Parent = game.Workspace
 script = Object.Flowey
 
 local UIS = game:GetService("UserInputService")
+
+writefile("Flowey.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Flowey.mp3"))
+writefile("Finale.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Finale.mp3"))
+
 local sound = Instance.new("Sound")
 sound.Name = "OmegaSong"
 sound.SoundId = getcustomasset("Flowey.mp3")
