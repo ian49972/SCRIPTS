@@ -1,3 +1,9 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
 local Player = game.Players.LocalPlayer
 
  local Object = game:GetObjects("rbxassetid://6375542687")[1]  
