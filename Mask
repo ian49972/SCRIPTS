@@ -12,6 +12,8 @@ script = Object.Mask
 
 writefile("Mask.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Mask.mp3"))
 
+task.wait(5)
+
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
 
