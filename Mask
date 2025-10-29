@@ -10,7 +10,9 @@ local Player = game.Players.LocalPlayer
 Object.Parent = game.Workspace
 script = Object.Mask
 
+if not isfile("Mask.mp3") then
 writefile("Mask.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Mask.mp3"))
+end
 
 task.wait(5)
 
