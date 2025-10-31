@@ -14,6 +14,10 @@ if not isfile("Mask.mp3") then
 writefile("Mask.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Mask.mp3"))
 end
 
+if not isfile("Taste.mp3") then
+writefile("Taste.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Taste.mp3"))
+end
+
 task.wait(5)
 
 local UIS = game:GetService("UserInputService")
@@ -224,7 +228,7 @@ sick.Name = "comander_cool"
 sick:resume()
 sick.Looped = true
 sick.Volume = 1
-sick.SoundId = "rbxassetid://1551788627"
+sick.SoundId = getcustomasset("Taste.mp3")
 sick.Pitch = 1
 IT = Instance.new
 CF = CFrame.new
