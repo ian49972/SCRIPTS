@@ -1,0 +1,309 @@
+-- Made by ban_thid
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+writefile("SLASH.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/SLASH.mp3"))
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local firstModel = game:GetObjects("rbxassetid://90348646612628")[1]
+firstModel.Parent = workspace
+task.wait()
+
+local worldCut = firstModel:FindFirstChild("WorldCut", true)
+if worldCut and worldCut:IsA("KeyframeSequence") then
+    worldCut.Parent = ReplicatedStorage
+end
+firstModel:Destroy()
+
+local secondModel = game:GetObjects("rbxassetid://106145517864562")[1]
+secondModel.Parent = workspace
+task.wait()
+
+local rob = secondModel:FindFirstChild("ROB")
+if rob then
+    local sukuna = rob:FindFirstChild("Sukuna")
+    if sukuna then
+        sukuna.Parent = ReplicatedStorage
+    end
+end
+secondModel:Destroy()
+
+local tStyle, tDirection = {
+	[Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}, {
+	[Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local AllKeyFrames = {}
+
+	for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+		table.insert(AllKeyFrames, {
+			Time = Keyframe.Time,
+			Keyframe = Keyframe
+		})
+	end
+	table.sort(AllKeyFrames, function(a, b)
+		return a.Time < b.Time
+	end)
+
+	local tweens = {}
+	local motors = {}
+	local motorValues = {}
+	local KeyFramePoses = {}
+
+	local function GetMotorFromPose(Pose, Keyframe)
+		for _, v in pairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+				return v
+			end
+		end
+		return nil
+	end
+
+	for i, Keyframe in ipairs(AllKeyFrames) do
+		KeyFramePoses[i] = {
+			Time = Keyframe.Time,
+			Poses = {}
+		}
+		for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+			if Pose:IsA("Pose") and Pose.Weight > 0 then
+				local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose, Keyframe)
+				if Motor6D then
+					motors[Pose.Name] = Motor6D
+					if not motorValues[Pose.Name] then
+						local motorVal = Instance.new("CFrameValue")
+						motorVal.Name = "MotorValue"
+						motorVal.Parent = Motor6D
+						motorValues[Pose.Name] = motorVal
+					end
+					KeyFramePoses[i].Poses[Pose.Name] = { Motor6D = Motor6D, Pose = Pose }
+				end
+			end
+		end
+	end
+
+	if #KeyFramePoses > 1 then
+		local lastPose = {}
+		for i = 1, #KeyFramePoses - 1 do
+			local KF1, KF2 = KeyFramePoses[i], KeyFramePoses[i + 1]
+			local duration = (KF2.Time - KF1.Time) / SpeedMult
+
+			tweens[i] = {
+				Time = duration,
+				Tweens = {}
+			}
+
+			for name, data in pairs(KF1.Poses) do
+				lastPose[name] = data
+			end
+
+			for name, data in pairs(KF2.Poses) do
+				if lastPose[name] then
+					local tweenInfo = TweenInfo.new(
+						duration,
+						tStyle[data.Pose.EasingStyle] or Enum.EasingStyle.Linear,
+						tDirection[data.Pose.EasingDirection] or Enum.EasingDirection.InOut
+					)
+					tweens[i].Tweens[name] = TweenService:Create(motorValues[name], tweenInfo, { Value = data.Pose.CFrame })
+				end
+			end
+		end
+	end
+
+	local markerEvents = {}
+
+	local function fireMarkers(keyframe)
+		for _, marker in pairs(keyframe:GetChildren()) do
+			if marker:IsA("KeyframeMarker") then
+				if markerEvents[marker.Name] then
+					markerEvents[marker.Name]:Fire(marker.Value)
+				end
+			end
+		end
+	end
+
+	local function getLength()
+		return KeyFramePoses[#KeyFramePoses].Time / SpeedMult
+	end
+
+	local playingRoutine = nil
+	local function play()
+		if playingRoutine then return end
+		playingRoutine = coroutine.create(function()
+			fireMarkers(AllKeyFrames[1].Keyframe)
+			for i, tweenData in ipairs(tweens) do
+				for _, tween in pairs(tweenData.Tweens) do
+					tween:Play()
+				end
+				task.wait(tweenData.Time)
+				fireMarkers(AllKeyFrames[i + 1].Keyframe)
+			end
+			playingRoutine = nil
+		end)
+		coroutine.resume(playingRoutine)
+	end
+
+	local connection = RunService.Heartbeat:Connect(function()
+		for name, motor in pairs(motors) do
+			if motorValues[name] and motorValues[name].Value then
+				motor.Transform = motorValues[name].Value
+			end
+		end
+	end)
+
+	local function stop()
+		if playingRoutine then
+			coroutine.close(playingRoutine)
+			playingRoutine = nil
+		end
+		connection:Disconnect()
+		for _, tweenData in pairs(tweens) do
+			for _, tween in pairs(tweenData.Tweens) do
+				tween:Cancel()
+			end
+		end
+		-- Clean up motor values
+		for _, mv in pairs(motorValues) do
+			mv:Destroy()
+		end
+		-- Clean up events
+		for _, event in pairs(markerEvents) do
+			event:Destroy()
+		end
+	end
+
+	return {
+		getLength = getLength,
+		play = play,
+		stop = stop,
+		GetMarkerReachedSignal = function(self, name)
+			if not markerEvents[name] then
+				markerEvents[name] = Instance.new("BindableEvent")
+			end
+			return markerEvents[name].Event
+		end
+	}
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "WORLD CUTTING SLASH"
+tool.Parent = player:WaitForChild("Backpack")
+
+local handle = Instance.new("Part")
+handle.Name = "Handle"
+handle.Size = Vector3.new(1,1,1)
+handle.Transparency = 1
+handle.CanCollide = false
+handle.Parent = tool
+
+tool.Activated:Connect(function()
+	local char = character
+	local humanoid = char.Humanoid
+	local hrp = char.HumanoidRootPart
+	humanoid.WalkSpeed = 0
+	humanoid.JumpPower = 0
+	humanoid.JumpHeight = 0
+	
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if animator then
+		animator:Destroy()
+	end
+	
+	local WorldCut = PlayKeyframeSequence(char, ReplicatedStorage.WorldCut, 2)
+
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("SLASH.mp3")
+sound.Volume = 1
+sound.Parent = Workspace
+sound.Looped = false
+sound:Play()
+	
+	local S1 = ReplicatedStorage.Sukuna.S1:Clone()
+	S1.Parent = hrp
+	S1.CFrame = hrp.CFrame * CFrame.new(0,0,0)
+	
+	WorldCut:GetMarkerReachedSignal("first"):Connect(function()
+		for i,v in pairs(S1.s1:GetDescendants()) do
+			if v:IsA("ParticleEmitter") then
+				v:Emit(v:GetAttribute("EmitCount"))
+			end
+		end
+		WorldCut:GetMarkerReachedSignal("sec"):Connect(function()
+			for i,v in pairs(S1.s2:GetDescendants()) do
+				if v:IsA("ParticleEmitter") then
+					v:Emit(v:GetAttribute("EmitCount"))
+				end
+			end
+			WorldCut:GetMarkerReachedSignal("third"):Connect(function()
+				for i,v in pairs(S1.s3:GetDescendants()) do
+					if v:IsA("ParticleEmitter") then
+						v:Emit(v:GetAttribute("EmitCount"))
+					end
+				end
+				local Aura = ReplicatedStorage.Sukuna.Aura:Clone()
+				Aura.Parent = hrp
+				Aura.CFrame = hrp.CFrame * CFrame.new(0,0,0)
+				local weldaura2 = Instance.new("Weld",Aura)
+				weldaura2.Part0 = hrp
+				weldaura2.Part1 = Aura
+				weldaura2.C0 = CFrame.new(0,-2.5,0)
+				local ArmAura = ReplicatedStorage.Sukuna.ArmAura:Clone()
+				ArmAura.Parent = char["Right Arm"]
+				ArmAura.CFrame = char["Right Arm"].CFrame * CFrame.new(0,0,0)
+				local weldaura2 = Instance.new("Weld",ArmAura)
+				weldaura2.Part0 = char["Right Arm"]
+				weldaura2.Part1 = ArmAura
+				weldaura2.C0 = CFrame.new(0,-1,0)
+				WorldCut:GetMarkerReachedSignal("fifth"):Connect(function()
+					local WorldSlash = ReplicatedStorage.Sukuna.WorldSlash:Clone()
+					WorldSlash.Parent = hrp
+					WorldSlash.CFrame = hrp.CFrame * CFrame.new(0,-2.5,0) * CFrame.fromEulerAnglesXYZ(0,math.rad(180),0)
+					game:GetService("TweenService"):Create(WorldSlash, TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {CFrame = WorldSlash.CFrame * CFrame.new(0, 0, 150)}):Play()
+
+					local SLASH = ReplicatedStorage.Sukuna.SLASH:Clone()
+					SLASH.Parent = hrp
+					SLASH.CFrame = hrp.CFrame * CFrame.new(0,-2.5,0)
+					wait(0.01)
+					for i,v in pairs(SLASH:GetDescendants()) do
+						if v:IsA("ParticleEmitter") then
+							v:Emit(v:GetAttribute("EmitCount"))
+						end
+					end
+					WorldCut:GetMarkerReachedSignal("sixth"):Connect(function()
+						Aura:Destroy()
+						ArmAura:Destroy()
+						S1:Destroy()
+						humanoid.WalkSpeed = 16
+						humanoid.JumpPower = 50.145
+						humanoid.JumpHeight = 7.2
+						WorldSlash:Destroy()
+
+						wait(3)
+						SLASH:Destroy()
+					end)
+				end)
+			end)
+		end)
+	end)
+	
+	WorldCut.play()
+	task.wait(6)
+	WorldCut.stop()
+	
+	Instance.new("Animator", humanoid)
+end)

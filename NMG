@@ -1,0 +1,264 @@
+-- Made by ban_thid
+
+local player = game.Players.LocalPlayer
+local workspace = game.Workspace
+local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+writefile("NMG.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/NMG.mp3"))
+
+local Object = game:GetObjects("rbxassetid://90348646612628")[1]
+Object.Parent = workspace
+
+function CloneMe(char)
+    char.Archivable = true
+    local clone = char:Clone()
+    char.Archivable = false
+    return clone
+end
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+    SpeedMult = SpeedMult or 1
+    
+    local tStyle, tDirection = {
+        [Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+        [Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+        [Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+        [Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+        [Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+    }, {
+        [Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+        [Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+        [Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+    }
+    
+    local AllKeyFrames = {}
+
+    for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+        table.insert(AllKeyFrames, {
+            Time = Keyframe.Time,
+            Keyframe = Keyframe
+        })
+    end
+    table.sort(AllKeyFrames, function(a, b)
+        return a.Time < b.Time
+    end)
+
+    local tweens = {}
+    local motors = {}
+    local motorValues = {}
+    local KeyFramePoses = {}
+
+    local function GetMotorFromPose(Pose, Keyframe)
+        for _, v in pairs(Model:GetDescendants()) do
+            if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+                return v
+            end
+        end
+        return nil
+    end
+
+    for i, Keyframe in ipairs(AllKeyFrames) do
+        KeyFramePoses[i] = {
+            Time = Keyframe.Time,
+            Poses = {}
+        }
+        for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+            if Pose:IsA("Pose") and Pose.Weight > 0 then
+                local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose, Keyframe)
+                if Motor6D then
+                    motors[Pose.Name] = Motor6D
+                    if not motorValues[Pose.Name] then
+                        local motorVal = Instance.new("CFrameValue")
+                        motorVal.Name = "MotorValue"
+                        motorVal.Parent = Motor6D
+                        motorValues[Pose.Name] = motorVal
+                    end
+                    KeyFramePoses[i].Poses[Pose.Name] = { Motor6D = Motor6D, Pose = Pose }
+                end
+            end
+        end
+    end
+
+    if #KeyFramePoses > 1 then
+        local lastPose = {}
+        for i = 1, #KeyFramePoses - 1 do
+            local KF1, KF2 = KeyFramePoses[i], KeyFramePoses[i + 1]
+            local duration = (KF2.Time - KF1.Time) / SpeedMult
+
+            tweens[i] = {
+                Time = duration,
+                Tweens = {}
+            }
+
+            for name, data in pairs(KF1.Poses) do
+                lastPose[name] = data
+            end
+
+            for name, data in pairs(KF2.Poses) do
+                if lastPose[name] then -- Ensure the pose exists in the previous keyframe
+                    local tweenInfo = TweenInfo.new(
+                        duration,
+                        tStyle[data.Pose.EasingStyle] or Enum.EasingStyle.Linear,
+                        tDirection[data.Pose.EasingDirection] or Enum.EasingDirection.InOut
+                    )
+                    tweens[i].Tweens[name] = TS:Create(motorValues[name], tweenInfo, { Value = data.Pose.CFrame })
+                end
+            end
+        end
+    end
+
+    local function getLength()
+        return KeyFramePoses[#KeyFramePoses].Time / SpeedMult
+    end
+
+    local function play()
+        for i, tweenData in ipairs(tweens) do
+            for _, tween in pairs(tweenData.Tweens) do
+                tween:Play()
+            end
+            task.wait(tweenData.Time)
+        end
+    end
+
+    local connection = RunService.Heartbeat:Connect(function()
+        for name, motor in pairs(motors) do
+            if motorValues[name] and motorValues[name].Value then
+                motor.Transform = motorValues[name].Value
+            end
+        end
+    end)
+
+    spawn(function()
+        if Model and Model.Parent then
+            play()
+        end
+    end)
+
+    return {
+        getLength = getLength,
+        stop = function()
+            connection:Disconnect()
+            for _, tweenData in pairs(tweens) do
+                for _, tween in pairs(tweenData.Tweens) do
+                    tween:Cancel()
+                end
+            end
+        end
+    }
+end
+
+local animSaves = Object:FindFirstChild("AnimSaves")
+if not animSaves then
+    return
+end
+
+local attackSeq = animSaves:FindFirstChild("Raging fast Hit")
+local victimSeq = animSaves:FindFirstChild("No More Games Victim")
+
+if not attackSeq or not victimSeq then
+    return
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "No More Games"
+
+local handle = Instance.new("Part")
+handle.Name = "Handle"
+handle.Size = Vector3.new(1, 1, 1)
+handle.Transparency = 1
+handle.CanCollide = false
+handle.Parent = tool
+
+tool.Parent = player.Backpack
+
+tool.Activated:Connect(function()
+    local localChar = player.Character
+    if not localChar then return end
+    
+    local localHRP = localChar:FindFirstChild("HumanoidRootPart")
+    if not localHRP then return end
+    
+    local localHumanoid = localChar:FindFirstChild("Humanoid")
+    if not localHumanoid then return end
+    
+    local head = localChar:FindFirstChild("Head")
+    if not head then return end
+    
+    local closest, minDist = nil, 20
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p ~= player then
+            local char = p.Character
+            if char then
+                local tHRP = char:FindFirstChild("HumanoidRootPart")
+                if tHRP then
+                    local dist = (localHRP.Position - tHRP.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        closest = p
+                    end
+                end
+            end
+        end
+    end
+    
+    if not closest then
+        print("Go near a player dude")
+        return
+    end
+
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("NMG.mp3")
+sound.Volume = 1
+sound.Parent = Workspace
+sound.Looped = false
+sound:Play()
+
+task.wait(0.1)
+    
+    local targetChar = closest.Character
+    local targetHRP = targetChar.HumanoidRootPart
+    
+    local animator = localHumanoid:FindFirstChild("Animator")
+    if animator then
+        animator:Destroy()
+    end
+
+    local charClone = CloneMe(targetChar)
+    charClone.Parent = workspace
+    print("Target cloned")
+    
+    local cloneHRP = charClone:FindFirstChild("HumanoidRootPart")
+    if cloneHRP then
+        cloneHRP.CFrame = localHRP.CFrame * CFrame.new(0, 0, -2.8) * CFrame.Angles(0, math.pi, 0)
+    end
+    
+    local weld = Instance.new("Weld")
+    weld.Part0 = localHRP
+    weld.Part1 = cloneHRP
+    weld.C0 = localHRP.CFrame:ToObjectSpace(cloneHRP.CFrame)
+    weld.C1 = CFrame.new()
+    weld.Parent = localHRP
+    
+    local camera = workspace.CurrentCamera
+    local originalSubject = camera.CameraSubject
+    local originalCameraType = camera.CameraType
+    camera.CameraSubject = head
+    camera.CameraType = Enum.CameraType.Custom
+    
+    local attackAnim = PlayKeyframeSequence(localChar, attackSeq, 2)
+    local victimAnim = PlayKeyframeSequence(charClone, victimSeq, 2)
+    
+    task.wait(attackAnim.getLength() + 6)
+    
+    camera.CameraSubject = originalSubject
+    camera.CameraType = originalCameraType
+    
+    attackAnim.stop()
+    victimAnim.stop()
+    
+    Instance.new("Animator", localHumanoid)
+    
+    weld:Destroy()
+    charClone:Destroy()
+end)
