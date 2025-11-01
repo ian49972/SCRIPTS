@@ -5,7 +5,7 @@ local Run = game:GetService("RunService")
 
 if not isfile("Weak.mp3") then
 writefile("Weak.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Weak.mp3"))
-end)
+end
 
 local Object = game:GetObjects("rbxassetid://104928991202331")[1]
 Object.Parent = ws
