@@ -4,6 +4,10 @@ local TS = game:GetService("TweenService")
 local Run = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 
+if not isfile("WEST.mp3") then
+writefile("WEST.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/WEST.mp3"))
+end)
+
 local Object = game:GetObjects("rbxassetid://104928991202331")[1]
 Object.Parent = ws
 
