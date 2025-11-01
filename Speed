@@ -1,0 +1,290 @@
+local player = game.Players.LocalPlayer
+local ws = game.Workspace
+local TS = game:GetService("TweenService")
+local Run = game:GetService("RunService")
+
+local Object1 = game:GetObjects("rbxassetid://90348646612628")[1]
+Object1.Parent = ws
+
+local Object2 = game:GetObjects("rbxassetid://9360985946")[1]
+Object2.Parent = ws
+
+local VFXModel = game:GetObjects("rbxassetid://8727493229")[1]
+VFXModel.Parent = ws
+
+local cleaveRushSeq = Object1:FindFirstChild("Cleave Rush")
+local runSeq = Object2.AnimSaves:FindFirstChild("Realistic Run anim 1 Peck Narm")
+
+local safeStorage = Instance.new("Folder")
+safeStorage.Name = "AnimationStorage"
+safeStorage.Parent = player
+
+local isActive = false
+local pAnim = nil
+local originalWalkSpeed = 16
+
+local tool = Instance.new("Tool")
+tool.Name = "Speed of light"
+local handle = Instance.new("Part")
+handle.Name = "Handle"
+handle.Size = Vector3.new(0.1, 0.1, 0.1)
+handle.Transparency = 1
+handle.CanCollide = false
+handle.Parent = tool
+tool.Parent = player.Backpack
+
+local activeEmitters = {}
+local vfxCopied = false
+local speedSound = nil
+
+local R6Parts = {
+	Head = true,
+	Torso = true,
+	["Left Arm"] = true,
+	["Right Arm"] = true,
+	["Left Leg"] = true,
+	["Right Leg"] = true
+}
+
+local function setCyan(emitter)
+	if emitter:IsA("ParticleEmitter") then
+		emitter.Color = ColorSequence.new(Color3.fromRGB(0, 255, 255))
+		emitter.LightEmission = 1
+		emitter.Transparency = NumberSequence.new(0.3)
+	end
+end
+
+local function copyVFXToPlayer(char)
+	if vfxCopied or not char then return end
+	vfxCopied = true
+
+	for _, part in pairs(VFXModel:GetChildren()) do
+		if part:IsA("BasePart") and R6Parts[part.Name] then
+			local targetPart = char:FindFirstChild(part.Name)
+			if targetPart then
+				for _, child in pairs(part:GetDescendants()) do
+					if child:IsA("ParticleEmitter") then
+						local clone = child:Clone()
+						setCyan(clone)
+						clone.Enabled = false
+						clone.Parent = targetPart
+						table.insert(activeEmitters, clone)
+					elseif child:IsA("Attachment") then
+						local attClone = child:Clone()
+						attClone.Parent = targetPart
+						for _, emitter in pairs(child:GetDescendants()) do
+							if emitter:IsA("ParticleEmitter") then
+								local eClone = emitter:Clone()
+								setCyan(eClone)
+								eClone.Enabled = false
+								eClone.Parent = attClone
+								table.insert(activeEmitters, eClone)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	VFXModel:Destroy()
+end
+
+local function enableVFX()
+	for _, emitter in pairs(activeEmitters) do
+		emitter.Enabled = true
+	end
+end
+
+local function disableVFX()
+	for _, emitter in pairs(activeEmitters) do
+		emitter.Enabled = false
+	end
+end
+
+local function createSound()
+	if speedSound then speedSound:Destroy() end
+	speedSound = Instance.new("Sound")
+	speedSound.SoundId = getcustomasset("SPEED.mp3")
+	speedSound.Volume = 1
+	speedSound.Looped = true
+	speedSound.Parent = ws
+end
+
+local function PlayKeyframeSequence(Model, Seq, Speed, Loop)
+	Speed = Speed or 1
+	local All = {}
+	for _, kf in Seq:GetKeyframes() do
+		table.insert(All, {Time = kf.Time, KF = kf})
+	end
+	table.sort(All, function(a,b) return a.Time < b.Time end)
+
+	if #All == 0 then return {stop = function() end} end
+
+	local tweens, motors, vals, poses = {}, {}, {}, {}
+
+	local function GetMotor(pose)
+		for _, m in Model:GetDescendants() do
+			if m:IsA("Motor6D") and m.Part1 and m.Part1.Name == pose.Name and m.Part0 and m.Part0.Name == pose.Parent.Name then
+				return m
+			end
+		end
+	end
+
+	for i, k in ipairs(All) do
+		poses[i] = {Time = k.Time, P = {}}
+		for _, p in k.KF:GetDescendants() do
+			if p:IsA("Pose") and p.Weight > 0 then
+				local m = motors[p.Name] or GetMotor(p)
+				if m then
+					motors[p.Name] = m
+					if not vals[p.Name] then
+						local v = Instance.new("CFrameValue")
+						v.Name = "MotorValue"
+						v.Parent = m
+						vals[p.Name] = v
+					end
+					poses[i].P[p.Name] = {M = m, P = p}
+				end
+			end
+		end
+	end
+
+	if #poses <= 1 then return {stop = function() end} end
+
+	local last = {}
+	for i = 1, #poses-1 do
+		local a, b = poses[i], poses[i+1]
+		local dur = (b.Time - a.Time) / Speed
+		tweens[i] = {D = dur, T = {}}
+		for n,d in pairs(a.P) do last[n] = d end
+		for n,d in pairs(b.P) do
+			if last[n] then
+				local ti = TweenInfo.new(dur, Enum.EasingStyle.Linear)
+				tweens[i].T[n] = TS:Create(vals[n], ti, {Value = d.P.CFrame})
+			end
+		end
+	end
+
+	local conn = Run.Heartbeat:Connect(function()
+		for n,m in pairs(motors) do
+			if vals[n] then m.Transform = vals[n].Value end
+		end
+	end)
+
+	local function playOnce()
+		for _, t in tweens do
+			for _, tw in t.T do tw:Play() end
+			task.wait(t.D)
+		end
+	end
+
+	local stopped = false
+	local function startLoop()
+		if stopped then return end
+		playOnce()
+		if Loop and not stopped then
+			task.spawn(startLoop)
+		end
+	end
+
+	task.spawn(startLoop)
+
+	return {
+		stop = function()
+			stopped = true
+			conn:Disconnect()
+			for _, t in tweens do
+				for _, tw in t.T do
+					if tw.PlaybackState ~= Enum.PlaybackState.Completed then
+						tw:Cancel()
+					end
+				end
+			end
+		end
+	}
+end
+
+local function cleanup()
+	isActive = false
+	if pAnim then
+		pAnim.stop()
+		pAnim = nil
+	end
+	disableVFX()
+	if speedSound then
+		speedSound:Stop()
+		speedSound:Destroy()
+		speedSound = nil
+	end
+	local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+	if hum then
+		hum.WalkSpeed = originalWalkSpeed
+		local anim = hum:FindFirstChild("Animator")
+		if anim then anim:Destroy() end
+		Instance.new("Animator", hum)
+	end
+	tool.Name = "Speed of light"
+end
+
+local function startSpeed()
+	if isActive then return end
+	isActive = true
+
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:FindFirstChild("Humanoid")
+	if not hum then cleanup() return end
+
+	originalWalkSpeed = hum.WalkSpeed
+
+	local animator = hum:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+	copyVFXToPlayer(char)
+	createSound()
+	speedSound:Play()
+
+	pAnim = PlayKeyframeSequence(char, cleaveRushSeq, 1)
+	task.wait(2.5)
+	if pAnim then
+		pAnim.stop()
+		pAnim = nil
+	end
+
+	pAnim = PlayKeyframeSequence(char, runSeq, 2, true)
+	enableVFX()
+	hum.WalkSpeed = 100
+	tool.Name = "Stop"
+end
+
+tool.Activated:Connect(function()
+	if isActive then
+		cleanup()
+	else
+		startSpeed()
+	end
+end)
+
+tool.Equipped:Connect(function()
+	tool.Name = isActive and "Stop" or "Speed of light"
+end)
+
+tool.Unequipped:Connect(function()
+	tool.Name = "Speed of light"
+end)
+
+player.CharacterAdded:Connect(function()
+	cleanup()
+	vfxCopied = false
+	activeEmitters = {}
+end)
+
+tool.Destroying:Connect(function()
+	cleanup()
+end)
+
+cleaveRushSeq.Parent = safeStorage
+runSeq.Parent = safeStorage
+
+Object1:Destroy()
+Object2:Destroy()

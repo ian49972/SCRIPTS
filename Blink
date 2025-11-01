@@ -1,0 +1,65 @@
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local TS = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local tool = Instance.new("Tool")
+tool.Name = "Blink"
+tool.RequiresHandle = false
+tool.Parent = player.Backpack
+
+local teleportSound = Instance.new("Sound")
+teleportSound.SoundId = "rbxassetid://8952019380"
+teleportSound.Volume = 0.7
+teleportSound.Parent = workspace
+
+local colorCorrection = Instance.new("ColorCorrectionEffect")
+colorCorrection.Name = "BlinkEffect"
+colorCorrection.Brightness = 0
+colorCorrection.Contrast = 0.1
+colorCorrection.Saturation = -1
+colorCorrection.TintColor = Color3.fromRGB(100, 150, 255)
+colorCorrection.Enabled = false
+colorCorrection.Parent = Lighting
+
+local function playBlinkEffect()
+	colorCorrection.Enabled = true
+	task.delay(0.2, function()
+		colorCorrection.Enabled = false
+	end)
+end
+
+local function teleportTo(position)
+	local char = player.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	
+	local hrp = char.HumanoidRootPart
+	hrp.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
+	
+	teleportSound:Play()
+	playBlinkEffect()
+end
+
+tool.Activated:Connect(function()
+	local target = mouse.Hit.Position
+	if target then
+		teleportTo(target)
+	end
+end)
+
+UIS.TouchTap:Connect(function(touchPositions, gameProcessed)
+	if gameProcessed then return end
+	if tool.Parent == player.Character then
+		local pos = touchPositions[1]
+		if pos then
+			local screenPos = Vector2.new(pos.X, pos.Y)
+			local camera = workspace.CurrentCamera
+			local ray = camera:ScreenPointToRay(screenPos.X, screenPos.Y)
+			local result = workspace:Raycast(ray.Origin, ray.Direction * 500)
+			if result then
+				teleportTo(result.Position)
+			end
+		end
+	end
+end)
