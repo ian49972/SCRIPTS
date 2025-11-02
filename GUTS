@@ -9,7 +9,14 @@
 -------------------||
 --//THIS WAS NOT FULLY CREATED BY ME:
 --\\SOME SOURCES MAY HAVE BEEN TAKEN FROM OTHER SCRIPTS
- local Object = game:GetObjects("rbxassetid://6438169891")[1]  
+
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
+local Object = game:GetObjects("rbxassetid://6438169891")[1]  
 Object.Parent = game.Workspace  
 script = Object.GUTS
 
