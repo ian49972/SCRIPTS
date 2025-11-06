@@ -273,8 +273,6 @@ local axe = script.pickaxe:Clone() axe.Parent = Torso
 local skully2 = script.skullscript:Clone()
 
 for i,v in pairs(Character:GetDescendants()) do
-if v:IsA("Accessory") then v:Destroy() end end
-for i,v in pairs(Character:GetDescendants()) do
 if v:IsA("Shirt") then v:Destroy() end end
 for i,v in pairs(Character:GetDescendants()) do
 if v:IsA("Pants") then v:Destroy() end end
