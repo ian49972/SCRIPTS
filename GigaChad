@@ -1,9 +1,19 @@
+game:GetService("StarterGui"):SetCore("SendNotification", { 
+	Title = "ban_notification";
+	Text = "This script is converted by ban_thid";
+	Icon = "rbxthumb://type=Asset&id=71967665601624&w=150&h=150"})
+Duration = 15;
+
 local Object = game:GetObjects("rbxassetid://10611255475")[1]  
 Object.Parent = game.Workspace  
 script = Object.Gigachad
 
 local Play = game:GetService("Players")
 local playeer = Play.LocalPlayer
+
+if not isfile("Muscles.mp3") then
+writefile("Muscles.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Muscles.mp3"))
+end
 
 local sound = Instance.new("Sound")
 sound.SoundId = getcustomasset("Muscles.mp3")
