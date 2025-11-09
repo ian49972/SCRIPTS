@@ -1,0 +1,326 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+
+local tool = Instance.new("Tool")
+tool.Name = "shucks"
+tool.RequiresHandle = false
+tool.Parent = backpack
+
+local currentAnim = nil
+local animationActive = false
+local cleanupRunning = false
+local soundInstance = nil
+local originalSpeed = nil
+
+local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local tStyle, tDirection = {
+	[Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}, {
+	[Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local leftHandle
+local leftFingerMotor
+local rightModelPart
+local rightModelMotor
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local AllKeyFrames = {}
+
+	for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+		table.insert(AllKeyFrames, {Time = Keyframe.Time, Keyframe = Keyframe})
+	end
+	table.sort(AllKeyFrames, function(a,b) return a.Time < b.Time end)
+
+	local motors, motorValues = {}, {}
+
+	local function GetMotorFromPose(Pose)
+		for _, v in pairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+				return v
+			end
+		end
+	end
+
+	for _, Keyframe in ipairs(AllKeyFrames) do
+		for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+			if Pose:IsA("Pose") and Pose.Weight > 0 then
+				local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose)
+				if Motor6D then
+					motors[Pose.Name] = Motor6D
+					if not motorValues[Pose.Name] then
+						local motorVal = Instance.new("CFrameValue")
+						motorVal.Name = "MotorValue"
+						motorVal.Parent = Motor6D
+						motorVal.Value = Motor6D.Transform
+						motorValues[Pose.Name] = motorVal
+					end
+				end
+			end
+		end
+	end
+
+	local tweens = {}
+	local totalTime = 0
+	if #AllKeyFrames > 1 then
+		for i = 1, #AllKeyFrames - 1 do
+			local KF1, KF2 = AllKeyFrames[i], AllKeyFrames[i+1]
+			local duration = (KF2.Time - KF1.Time) / SpeedMult
+			totalTime += duration
+
+			for _, Pose in pairs(KF2.Keyframe:GetDescendants()) do
+				if Pose:IsA("Pose") and Pose.Weight > 0 and motors[Pose.Name] then
+					local tweenInfo = TweenInfo.new(
+						duration,
+						tStyle[Pose.EasingStyle] or Enum.EasingStyle.Linear,
+						tDirection[Pose.EasingDirection] or Enum.EasingDirection.InOut
+					)
+					table.insert(tweens, {
+						Tween = TS:Create(motorValues[Pose.Name], tweenInfo, {Value = Pose.CFrame}),
+						Delay = totalTime - duration
+					})
+				end
+			end
+		end
+	end
+
+	local function getLength()
+		return AllKeyFrames[#AllKeyFrames].Time / SpeedMult
+	end
+
+	local function play()
+		for _, data in ipairs(tweens) do
+			task.delay(data.Delay, function()
+				data.Tween:Play()
+			end)
+		end
+	end
+
+	local connection = RunService.Heartbeat:Connect(function()
+		for name, motor in pairs(motors) do
+			if motorValues[name] then
+				motor.Transform = motorValues[name].Value
+			end
+		end
+	end)
+
+	spawn(function()
+		play()
+		task.wait(getLength())
+		connection:Disconnect()
+	end)
+
+	return {getLength = getLength, stop = function()
+		connection:Disconnect()
+		for _, data in ipairs(tweens) do
+			data.Tween:Cancel()
+		end
+	end}
+end
+
+local function spawnLeftFingers(assetId)
+	local ok, model = pcall(function() return game:GetObjects(assetId)[1] end)
+	if not ok or not model then return end
+	leftHandle = model:FindFirstChild("LeftHandle")
+	if not leftHandle then
+		model:Destroy()
+		return
+	end
+	local leftArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftUpperArm")
+	if not leftArm then
+		model:Destroy()
+		return
+	end
+	local skinColor = leftArm.Color
+	local handOffset = CFrame.new(0, -0.88, 0)
+
+	local leftBase = leftHandle:FindFirstChildWhichIsA("BasePart") or leftHandle
+	for _, part in pairs(leftHandle:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Color = skinColor
+		end
+	end
+	leftFingerMotor = Instance.new("Motor6D")
+	leftFingerMotor.Name = "LeftFingerJoint"
+	leftFingerMotor.Part0 = leftArm
+	leftFingerMotor.Part1 = leftBase
+	leftFingerMotor.C0 = handOffset
+	leftFingerMotor.C1 = CFrame.new()
+	leftFingerMotor.Parent = leftArm
+	leftHandle.Parent = char
+
+	model:Destroy()
+end
+
+local function spawnRightModel()
+	local ok, model = pcall(function() return game:GetObjects("rbxassetid://77998376149238")[1] end)
+	if not ok or not model then return end
+
+	local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightUpperArm")
+	if not rightArm then
+		model:Destroy()
+		return
+	end
+
+	rightModelPart = model:FindFirstChildWhichIsA("BasePart") or model
+	if not rightModelPart then
+		model:Destroy()
+		return
+	end
+
+	local handOffset = CFrame.new(0, -1.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+	rightModelMotor = Instance.new("Motor6D")
+	rightModelMotor.Name = "RightModelWeld"
+	rightModelMotor.Part0 = rightArm
+	rightModelMotor.Part1 = rightModelPart
+	rightModelMotor.C0 = handOffset
+	rightModelMotor.C1 = CFrame.new()
+	rightModelMotor.Parent = rightArm
+	rightModelPart.Anchored = false
+	rightModelPart.Parent = char
+
+	model:Destroy()
+end
+
+local function removeLeftFingers()
+	if leftHandle and leftHandle.Parent then leftHandle:Destroy() end
+	if leftFingerMotor and leftFingerMotor.Parent then leftFingerMotor:Destroy() end
+	leftHandle, leftFingerMotor = nil, nil
+end
+
+local function removeRightModel()
+	if rightModelPart and rightModelPart.Parent then rightModelPart:Destroy() end
+	if rightModelMotor and rightModelMotor.Parent then rightModelMotor:Destroy() end
+	rightModelPart, rightModelMotor = nil, nil
+end
+
+local function cleanup()
+	if cleanupRunning then return end
+	cleanupRunning = true
+
+	if currentAnim then
+		pcall(function() currentAnim.stop() end)
+		currentAnim = nil
+	end
+
+	removeLeftFingers()
+	removeRightModel()
+
+	if soundInstance then
+		pcall(function()
+			if soundInstance.IsPlaying then soundInstance:Stop() end
+			soundInstance:Destroy()
+		end)
+		soundInstance = nil
+	end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum and originalSpeed then
+		pcall(function() hum.WalkSpeed = originalSpeed end)
+		originalSpeed = nil
+	end
+
+	local humObj = char:FindFirstChildOfClass("Humanoid")
+	if humObj then
+		local existingAnimator = humObj:FindFirstChildOfClass("Animator")
+		if not existingAnimator then
+			local newAnimator = Instance.new("Animator")
+			newAnimator.Parent = humObj
+		end
+	end
+
+	animationActive = false
+	tool.Name = "shucks"
+	cleanupRunning = false
+end
+
+tool.Activated:Connect(function()
+	if animationActive then
+		cleanup()
+		return
+	end
+
+	animationActive = true
+	tool.Name = "Stop"
+	originalSpeed = nil
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		animationActive = false
+		tool.Name = "shucks"
+		return
+	end
+
+	originalSpeed = hum.WalkSpeed
+
+	local assetId = "rbxassetid://18637374258"
+	local subModelSafeAsset = "rbxassetid://82703883871076"
+
+	local subModel
+	do
+		local ok, m = pcall(function() return game:GetObjects(subModelSafeAsset)[1] end)
+		if ok then subModel = m end
+	end
+	if subModel then
+		subModel.Parent = workspace
+		local subKeyframe = subModel:FindFirstChild("shucks")
+		if subKeyframe then
+			subKeyframe.Parent = ReplicatedStorage
+		end
+		if subModel and subModel.Parent then
+			subModel:Destroy()
+		end
+	end
+
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if animator then animator:Destroy() end
+
+	spawnLeftFingers(assetId)
+	spawnRightModel()
+
+	soundInstance = Instance.new("Sound")
+	soundInstance.SoundId = getcustomasset("shucks.mp3")
+	soundInstance.Volume = 1
+	soundInstance.Looped = false
+	soundInstance.Parent = workspace
+	pcall(function() soundInstance:Play() end)
+
+	local keyframe = ReplicatedStorage:FindFirstChild("shucks")
+	if not keyframe then
+		cleanup()
+		return
+	end
+
+	currentAnim = PlayKeyframeSequence(char, keyframe, 1)
+
+	hum.WalkSpeed = 0
+
+	spawn(function()
+		local length = 0
+		local ok, l = pcall(function() return currentAnim and currentAnim.getLength() or 0 end)
+		if ok then length = l end
+		local elapsed = 0
+		local interval = 0.1
+		while elapsed < length do
+			if not animationActive then break end
+			task.wait(interval)
+			elapsed += interval
+		end
+		if animationActive then
+			cleanup()
+		end
+	end)
+end)
