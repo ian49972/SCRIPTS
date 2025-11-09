@@ -1,3 +1,5 @@
+writefile("SUBTER.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/SUBTER.mp3"))
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
