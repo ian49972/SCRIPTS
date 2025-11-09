@@ -164,7 +164,7 @@ tool.Activated:Connect(function()
 		sound.Parent = workspace
 		sound:Play()
 
-		animData = PlayKeyframeSequence(char, RS.sillybillyV2, 1.6)
+		animData = PlayKeyframeSequence(char, RS.sillybillyV2, 1.1)
 
 		task.delay(23, function()
 			if active then
