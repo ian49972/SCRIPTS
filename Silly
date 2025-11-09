@@ -1,4 +1,4 @@
-writefile("QUIET.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/QUIET.mp3"))
+writefile("Silly.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Silly.mp3"))
 
 local player = game:GetService("Players").LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
