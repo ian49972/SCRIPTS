@@ -1,0 +1,213 @@
+local player = game:GetService("Players").LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:FindFirstChildOfClass("Humanoid")
+local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local RS = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+
+local tool = Instance.new("Tool")
+tool.Name = "Silly Billy"
+tool.RequiresHandle = false
+tool.Parent = player.Backpack
+
+local tStyle, tDirection = {
+	[Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}, {
+	[Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local AllKeyFrames = {}
+
+	for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+		table.insert(AllKeyFrames, {Time = Keyframe.Time, Keyframe = Keyframe})
+	end
+	table.sort(AllKeyFrames, function(a,b) return a.Time < b.Time end)
+
+	local tweens, motors, motorValues, KeyFramePoses = {}, {}, {}, {}
+
+	local function GetMotorFromPose(Pose)
+		for _, v in pairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+				return v
+			end
+		end
+	end
+
+	for i, Keyframe in ipairs(AllKeyFrames) do
+		KeyFramePoses[i] = {Time = Keyframe.Time, Poses = {}}
+		for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+			if Pose:IsA("Pose") and Pose.Weight > 0 then
+				local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose)
+				if Motor6D then
+					motors[Pose.Name] = Motor6D
+					if not motorValues[Pose.Name] then
+						local motorVal = Instance.new("CFrameValue")
+						motorVal.Name = "MotorValue"
+						motorVal.Parent = Motor6D
+						motorValues[Pose.Name] = motorVal
+					end
+					KeyFramePoses[i].Poses[Pose.Name] = {Motor6D = Motor6D, Pose = Pose}
+				end
+			end
+		end
+	end
+
+	if #KeyFramePoses > 1 then
+		local lastPose = {}
+		for i = 1, #KeyFramePoses - 1 do
+			local KF1, KF2 = KeyFramePoses[i], KeyFramePoses[i + 1]
+			local duration = (KF2.Time - KF1.Time) / SpeedMult
+			tweens[i] = {Time = duration, Tweens = {}}
+			for name, data in pairs(KF1.Poses) do
+				lastPose[name] = data
+			end
+			for name, data in pairs(KF2.Poses) do
+				if lastPose[name] then
+					local tweenInfo = TweenInfo.new(
+						duration,
+						tStyle[data.Pose.EasingStyle] or Enum.EasingStyle.Linear,
+						tDirection[data.Pose.EasingDirection] or Enum.EasingDirection.InOut
+					)
+					tweens[i].Tweens[name] = TS:Create(motorValues[name], tweenInfo, {Value = data.Pose.CFrame})
+				end
+			end
+		end
+	end
+
+	local function getLength()
+		return KeyFramePoses[#KeyFramePoses].Time / SpeedMult
+	end
+
+	local function play()
+		for i, tweenData in ipairs(tweens) do
+			for _, tween in pairs(tweenData.Tweens) do
+				tween:Play()
+			end
+			task.wait(tweenData.Time)
+		end
+	end
+
+	local connection = RunService.Heartbeat:Connect(function()
+		for name, motor in pairs(motors) do
+			if motorValues[name] and motorValues[name].Value then
+				motor.Transform = motorValues[name].Value
+			end
+		end
+	end)
+
+	spawn(function()
+		play()
+		connection:Disconnect()
+	end)
+
+	return {getLength = getLength, stop = function()
+		connection:Disconnect()
+		for _, tweenData in pairs(tweens) do
+			for _, tween in pairs(tweenData.Tweens) do
+				tween:Cancel()
+			end
+		end
+	end}
+end
+
+local active = false
+local animData = nil
+local sound = nil
+local savedAnimator = nil
+local meshModel = nil
+local weld = nil
+local flashGui = nil
+local highlight = nil
+local darkFog = nil
+
+tool.Activated:Connect(function()
+	if not active then
+		active = true
+		tool.Name = "Stop"
+		if hum then
+			savedAnimator = hum:FindFirstChildOfClass("Animator")
+			if savedAnimator then savedAnimator:Destroy() end
+			hum.WalkSpeed = 0
+		end
+
+		local obj = game:GetObjects("rbxassetid://82703883871076")[1]
+		local sillybillyV2 = obj:FindFirstChild("sillybillyV2")
+		if sillybillyV2 then sillybillyV2.Parent = RS end
+		obj:Destroy()
+
+		meshModel = game:GetObjects("rbxassetid://8684460072")[1]
+		meshModel.Parent = char
+		local leftArm = char:WaitForChild("Left Arm")
+		local meshPart = meshModel:FindFirstChildWhichIsA("BasePart") or meshModel
+		meshPart.Anchored = false
+		meshPart.CFrame = leftArm.CFrame * CFrame.new(0, -0.5, -0.4)
+		weld = Instance.new("Weld")
+		weld.Part0 = leftArm
+		weld.Part1 = meshPart
+		weld.C0 = CFrame.new(0, -0.5, -0.4)
+		weld.Parent = leftArm
+
+		sound = Instance.new("Sound")
+		sound.SoundId = getcustomasset("Silly.mp3")
+		sound.Volume = 1
+		sound.Parent = workspace
+		sound:Play()
+
+		animData = PlayKeyframeSequence(char, RS.sillybillyV2, 1.7)
+
+		task.delay(23, function()
+			if active then
+				flashGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+				flashGui.IgnoreGuiInset = true
+				local frame = Instance.new("Frame", flashGui)
+				frame.BackgroundColor3 = Color3.new(1, 1, 1)
+				frame.Size = UDim2.new(1, 0, 1, 0)
+				task.wait(0.5)
+				flashGui:Destroy()
+
+				highlight = Instance.new("Highlight")
+				highlight.FillColor = Color3.fromRGB(160, 0, 255)
+				highlight.OutlineColor = Color3.fromRGB(255, 0, 255)
+				highlight.Parent = char
+			end
+		end)
+
+		task.delay(animData.getLength() + 21, function()
+			if active then
+				active = false
+				if hum and not hum:FindFirstChildOfClass("Animator") then
+					Instance.new("Animator", hum)
+					hum.WalkSpeed = 16
+				end
+				if sound then sound:Destroy() end
+				if meshModel then meshModel:Destroy() end
+				if flashGui then flashGui:Destroy() end
+				if highlight then highlight:Destroy() end
+				if darkFog then darkFog:Destroy() end
+				animData.stop()
+				tool.Name = "Silly Billy"
+			end
+		end)
+	else
+		active = false
+		if animData then animData.stop() end
+		if sound then sound:Destroy() end
+		if meshModel then meshModel:Destroy() end
+		if flashGui then flashGui:Destroy() end
+		if highlight then highlight:Destroy() end
+		if hum and not hum:FindFirstChildOfClass("Animator") then
+			Instance.new("Animator", hum)
+			hum.WalkSpeed = 16
+		end
+		tool.Name = "Silly Billy"
+	end
+end)
