@@ -1,0 +1,202 @@
+local player = game:GetService("Players").LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:FindFirstChildOfClass("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local RS = game:GetService("ReplicatedStorage")
+
+local tool = Instance.new("Tool")
+tool.Name = "Pick Up The Phone"
+tool.RequiresHandle = false
+tool.Parent = player.Backpack
+
+local tStyle, tDirection = {
+	[Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}, {
+	[Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local AllKeyFrames = {}
+	for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+		table.insert(AllKeyFrames, {Time = Keyframe.Time, Keyframe = Keyframe})
+	end
+	table.sort(AllKeyFrames, function(a,b) return a.Time < b.Time end)
+
+	local motors, motorValues = {}, {}
+
+	local function GetMotorFromPose(Pose)
+		for _, v in pairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+				return v
+			end
+		end
+	end
+
+	for _, Keyframe in ipairs(AllKeyFrames) do
+		for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+			if Pose:IsA("Pose") and Pose.Weight > 0 then
+				local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose)
+				if Motor6D then
+					motors[Pose.Name] = Motor6D
+					if not motorValues[Pose.Name] then
+						local motorVal = Instance.new("CFrameValue")
+						motorVal.Name = "MotorValue"
+						motorVal.Parent = Motor6D
+						motorVal.Value = Motor6D.Transform
+						motorValues[Pose.Name] = motorVal
+					end
+				end
+			end
+		end
+	end
+
+	local tweens = {}
+	local totalTime = 0
+	if #AllKeyFrames > 1 then
+		for i = 1, #AllKeyFrames - 1 do
+			local KF1, KF2 = AllKeyFrames[i], AllKeyFrames[i+1]
+			local duration = (KF2.Time - KF1.Time) / SpeedMult
+			totalTime += duration
+
+			for _, Pose in pairs(KF2.Keyframe:GetDescendants()) do
+				if Pose:IsA("Pose") and Pose.Weight > 0 and motors[Pose.Name] then
+					local tweenInfo = TweenInfo.new(
+						duration,
+						tStyle[Pose.EasingStyle] or Enum.EasingStyle.Linear,
+						tDirection[Pose.EasingDirection] or Enum.EasingDirection.InOut
+					)
+					table.insert(tweens, {
+						Tween = TS:Create(motorValues[Pose.Name], tweenInfo, {Value = Pose.CFrame}),
+						Delay = totalTime - duration
+					})
+				end
+			end
+		end
+	end
+
+	local function getLength()
+		return AllKeyFrames[#AllKeyFrames].Time / SpeedMult
+	end
+
+	local function play()
+		for _, data in ipairs(tweens) do
+			task.delay(data.Delay, function()
+				data.Tween:Play()
+			end)
+		end
+	end
+
+	local connection = RunService.Heartbeat:Connect(function()
+		for name, motor in pairs(motors) do
+			if motorValues[name] then
+				motor.Transform = motorValues[name].Value
+			end
+		end
+	end)
+
+	spawn(function()
+		play()
+		task.wait(getLength())
+		connection:Disconnect()
+	end)
+
+	return {getLength = getLength, stop = function()
+		connection:Disconnect()
+		for _, data in ipairs(tweens) do
+			data.Tween:Cancel()
+		end
+	end}
+end
+
+local active = false
+local animData = nil
+local sound = nil
+local savedAnimator = nil
+local extraModel = nil
+local extraWeld = nil
+
+tool.Activated:Connect(function()
+	if not active then
+		active = true
+		tool.Name = "Stop"
+		if hum then
+			savedAnimator = hum:FindFirstChildOfClass("Animator")
+			if savedAnimator then savedAnimator:Destroy() end
+			hum.WalkSpeed = 0
+		end
+
+		local obj = game:GetObjects("rbxassetid://82703883871076")[1]
+		local sillybillyV2 = obj:FindFirstChild("phone")
+		if sillybillyV2 then sillybillyV2.Parent = RS end
+		obj:Destroy()
+
+		local loadedAsset = game:GetObjects("rbxassetid://123605849294238")[1]
+		extraModel = Instance.new("Model")
+		extraModel.Name = "ExtraModel"
+		for _, child in ipairs(loadedAsset:GetChildren()) do
+			child.Parent = extraModel
+		end
+		loadedAsset:Destroy()
+		extraModel.Parent = char
+
+		for _, part in ipairs(extraModel:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.Anchored = false
+				part.CanCollide = false
+				part.Massless = true
+			end
+		end
+
+		local primary = extraModel.PrimaryPart or extraModel:FindFirstChildWhichIsA("BasePart")
+		if primary then
+			primary.CFrame = root.CFrame * CFrame.new(0, -1.8, 0) * CFrame.Angles(0, math.rad(0), 284.3)
+			extraWeld = Instance.new("WeldConstraint")
+			extraWeld.Part0 = root
+			extraWeld.Part1 = primary
+			extraWeld.Parent = root
+		end
+
+		sound = Instance.new("Sound")
+		sound.SoundId = getcustomasset("phone.mp3")
+		sound.Volume = 1
+		sound.Parent = workspace
+		sound:Play()
+
+		animData = PlayKeyframeSequence(char, RS.phone, 1)
+
+		task.delay(animData.getLength() + 2, function()
+			if active then
+				active = false
+				if hum and not hum:FindFirstChildOfClass("Animator") then
+					Instance.new("Animator", hum)
+					hum.WalkSpeed = 16
+				end
+				if sound then sound:Destroy() end
+				if extraModel then extraModel:Destroy() end
+				if extraWeld then extraWeld:Destroy() end
+				animData.stop()
+				tool.Name = "Pick Up The Phone"
+			end
+		end)
+	else
+		active = false
+		if animData then animData.stop() end
+		if sound then sound:Destroy() end
+		if extraModel then extraModel:Destroy() end
+		if extraWeld then extraWeld:Destroy() end
+		if hum and not hum:FindFirstChildOfClass("Animator") then
+			Instance.new("Animator", hum)
+			hum.WalkSpeed = 16
+		end
+		tool.Name = "Pick Up The Phone"
+	end
+end)
