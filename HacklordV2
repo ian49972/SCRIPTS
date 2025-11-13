@@ -1,3 +1,12 @@
+
+-- Made by ban_thid | Hacklord (W.I.P)
+
+writefile("LMS.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/LMS.mp3"))
+writefile("Layer1.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Layer1.mp3"))
+writefile("Layer2.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Layer2.mp3"))
+writefile("Layer3.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Layer3.mp3"))
+writefile("Theme.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Theme.mp3"))
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
