@@ -1,5 +1,5 @@
 
--- Made by ban_thid | Hacklord (W.I.P)
+-- Made by ban_thid | Hacklord
 
 writefile("LMS.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/LMS.mp3"))
 writefile("Layer1.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Layer1.mp3"))
