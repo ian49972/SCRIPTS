@@ -1,0 +1,663 @@
+local neededFiles = {}
+for i = 1, 20 do
+    local n = string.format("%03d", i)
+    table.insert(neededFiles, "Fredscare/ezgif-frame-"..n..".png")
+end
+table.insert(neededFiles, "Fredbear.rbxmx")
+
+local HasFiles = true
+for _, file in ipairs(neededFiles) do
+    if not isfile(file) then
+         HasFiles = false
+        break
+    end
+end
+
+if HasFiles then
+    return
+end
+
+local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(1, 0, 1, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Frame.Parent = ScreenGui
+
+local LoadingText = Instance.new("TextLabel")
+LoadingText.Size = UDim2.new(1,0,0,50)
+LoadingText.Position = UDim2.new(0,0,0.3,0)
+LoadingText.BackgroundTransparency = 1
+LoadingText.Text = "Loading"
+LoadingText.TextColor3 = Color3.fromRGB(255,255,255)
+LoadingText.TextScaled = true
+LoadingText.Parent = Frame
+
+local InfoText = Instance.new("TextLabel")
+InfoText.Size = UDim2.new(1,0,0,30)
+InfoText.Position = UDim2.new(0,0,0.38,0)
+InfoText.BackgroundTransparency = 1
+InfoText.Text = "This screen will not appear if you use the script again"
+InfoText.TextColor3 = Color3.fromRGB(200,200,200)
+InfoText.TextScaled = true
+InfoText.Parent = Frame
+
+local BarBG = Instance.new("Frame")
+BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+BarBG.Position = UDim2.new(0.5, 0, 0.8, 0)
+BarBG.Size = UDim2.new(0.6, 0, 0.05, 0)
+BarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+BarBG.Parent = Frame
+
+local bgCorner = Instance.new("UICorner")
+bgCorner.CornerRadius = UDim.new(0, 12)
+bgCorner.Parent = BarBG
+
+local Bar = Instance.new("Frame")
+Bar.Size = UDim2.new(0, 0, 1, 0)
+Bar.BackgroundColor3 = Color3.fromRGB(255, 230, 0)
+Bar.Parent = BarBG
+
+local barCorner = Instance.new("UICorner")
+barCorner.CornerRadius = UDim.new(0, 12)
+barCorner.Parent = Bar
+
+local function UpdateBar(p)
+    Bar.Size = UDim2.new(p, 0, 1, 0)
+end
+
+if not isfolder("Fredscare") then
+    makefolder("Fredscare")
+end
+
+local total = 21
+local count = 0
+
+for i = 1, 20 do
+    local n = string.format("%03d", i)
+    if not isfile("Fredscare/ezgif-frame-"..n..".png") then
+        writefile("Fredscare/ezgif-frame-"..n..".png",
+            game:HttpGet("https://raw.githubusercontent.com/ian49972/IMAGES/refs/heads/main/ezgif-frame-"..n..".png")
+        )
+    end
+    count += 1
+    UpdateBar(count / total)
+end
+
+if not isfile("Fredbear.rbxmx") then
+    writefile("Fredbear.rbxmx",
+        game:HttpGet("https://raw.githubusercontent.com/ian49972/RBXMS/refs/heads/main/Fredbear.rbxmx")
+    )
+end
+
+count += 1
+UpdateBar(count / total)
+
+ScreenGui:Destroy()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local NPC = game:GetObjects(getcustomasset("Fredbear.rbxmx"))[1]
+local Fredbear = NPC:WaitForChild("Fredbear")
+local KeyframesFolder = NPC:WaitForChild("Keyframes")
+local RunKeyframe = KeyframesFolder:WaitForChild("Run")
+local WalkKeyframe = KeyframesFolder:WaitForChild("Walk")
+local LookAroundKeyframe = KeyframesFolder:WaitForChild("LookAround")
+
+local humanoid = Fredbear:WaitForChild("Humanoid")
+local rootPart = Fredbear.PrimaryPart
+local head = Fredbear:WaitForChild("Fredbear2")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local currentAnim = nil
+local wanderThread = nil
+local chaseThread = nil
+local distractThread = nil
+local footstepThread = nil
+
+local Chase_Speed = 70
+local Sight_Range = 50
+local canStartChasing = true
+
+local footstepSound = Instance.new("Sound")
+footstepSound.SoundId = "rbxassetid://107928272700538"
+footstepSound.Volume = 0.8
+footstepSound.Parent = rootPart
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	if currentAnim and currentAnim.Stop then currentAnim:Stop() end
+
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+	if #keyframes == 0 then return end
+
+	local motorMap = {}
+	local boneMap = {}
+	local valueMap = {}
+	local tweenList = {}
+
+	local function ResolveInstance(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+		for _, motor in ipairs(Model:GetDescendants()) do
+			if motor:IsA("Motor6D") and motor.Part1 and motor.Part0 then
+				if motor.Part1.Name == name and motor.Part0.Name == pose.Parent.Name then
+					motorMap[name] = motor
+					return motor, "Motor6D"
+				end
+			end
+		end
+		for _, bone in ipairs(Model:GetDescendants()) do
+			if bone:IsA("Bone") and bone.Name == name and bone.Parent and bone.Parent.Name == pose.Parent.Name then
+				boneMap[name] = bone
+				return bone, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	local poseTables = {}
+	for i, entry in ipairs(keyframes) do
+		local tab = {Time = entry.Time, Poses = {}}
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local instance, typ = ResolveInstance(pose)
+				if instance then
+					if not valueMap[pose.Name] then
+						local val = Instance.new("CFrameValue")
+						val.Name = "AnimValue"
+						val.Parent = instance
+						valueMap[pose.Name] = val
+					end
+					tab.Poses[pose.Name] = {
+						Instance = instance,
+						Type = typ,
+						CFrame = pose.CFrame,
+						Style = pose.EasingStyle,
+						Dir = pose.EasingDirection,
+					}
+				end
+			end
+		end
+		poseTables[i] = tab
+	end
+
+	for i = 1, #poseTables-1 do
+		local kf1 = poseTables[i]
+		local kf2 = poseTables[i+1]
+		local duration = (kf2.Time - kf1.Time) / SpeedMult
+		local group = {Duration = duration, Tweens = {}}
+		for name, data2 in pairs(kf2.Poses) do
+			local data1 = kf1.Poses[name] or poseTables[1].Poses[name]
+			if data1 then
+				local ti = TweenInfo.new(
+					duration,
+					EasingStyleMap[data2.Style] or Enum.EasingStyle.Linear,
+					EasingDirectionMap[data2.Dir] or Enum.EasingDirection.InOut
+				)
+				local tween = TweenService:Create(valueMap[name], ti, {Value = data2.CFrame})
+				group.Tweens[name] = tween
+			end
+		end
+		table.insert(tweenList, group)
+	end
+
+	local heartbeatConn
+	local playing = true
+	heartbeatConn = RunService.Heartbeat:Connect(function()
+		for name, valObj in pairs(valueMap) do
+			local cf = valObj.Value
+			local entry = poseTables[1].Poses[name]
+			if entry then
+				entry.Instance.Transform = cf
+			end
+		end
+	end)
+
+	local function PlayOnce()
+		for _, group in ipairs(tweenList) do
+			if not playing then break end
+			for _, tween in pairs(group.Tweens) do
+				tween:Play()
+			end
+			task.wait(group.Duration)
+		end
+	end
+
+	task.spawn(function()
+		while playing and Model and Model.Parent do
+			PlayOnce()
+			task.wait()
+		end
+	end)
+
+	local animLength = poseTables[#poseTables].Time / SpeedMult
+	currentAnim = {
+		Stop = function()
+			playing = false
+			if heartbeatConn then heartbeatConn:Disconnect() end
+			for _, group in ipairs(tweenList) do
+				for _, tween in pairs(group.Tweens) do
+					tween:Cancel()
+				end
+			end
+			for _, v in pairs(valueMap) do
+				v:Destroy()
+			end
+		end,
+		Length = animLength,
+		KeyframeSequence = KeyframeSequence
+	}
+	return currentAnim
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local button = Instance.new("ImageButton")
+button.Size = UDim2.new(0, 70, 0, 70)
+button.Position = UDim2.new(1, -90, 0.5, -35)
+button.BackgroundTransparency = 1
+button.Image = "rbxassetid://86569694992955"
+button.Parent = screenGui
+
+local distractSound = Instance.new("Sound")
+distractSound.SoundId = "rbxassetid://105462937449561"
+distractSound.Volume = 3
+distractSound.Parent = workspace
+
+local jumpscareSound1 = Instance.new("Sound")
+jumpscareSound1.SoundId = "rbxassetid://110192118545250"
+jumpscareSound1.Volume = 2
+jumpscareSound1.Parent = workspace
+
+local jumpscareSound2 = Instance.new("Sound")
+jumpscareSound2.SoundId = "rbxassetid://92290963744841"
+jumpscareSound2.Volume = 2
+jumpscareSound2.Parent = workspace
+
+local hitbox = Instance.new("Part")
+hitbox.Size = Vector3.new(8, 6, 12)
+hitbox.Transparency = 1
+hitbox.CanCollide = false
+hitbox.Anchored = true
+hitbox.Parent = workspace
+
+local jumpscareGui = Instance.new("ScreenGui")
+jumpscareGui.Name = "FredbearJumpscare"
+jumpscareGui.IgnoreGuiInset = true
+jumpscareGui.ResetOnSpawn = false
+jumpscareGui.Enabled = false
+jumpscareGui.Parent = playerGui
+
+local frameCount = 20
+local frameSpeed = 0.07
+local frames = {}
+for i = 1, frameCount do
+	local num = string.format("%03d", i)
+	local img = Instance.new("ImageLabel")
+	img.Size = UDim2.fromScale(1,1)
+	img.BackgroundTransparency = 1
+	img.Image = getcustomasset("Fredscare/ezgif-frame-"..num..".png")
+	img.Visible = false
+	img.Parent = jumpscareGui
+	frames[i] = img
+end
+
+local function playJumpscareFrames()
+	jumpscareGui.Enabled = true
+	task.spawn(function()
+		for i = 1, frameCount do
+			for _, f in ipairs(frames) do f.Visible = false end
+			frames[i].Visible = true
+			task.wait(frameSpeed)
+		end
+	end)
+end
+
+local billboard = Instance.new("BillboardGui")
+billboard.Adornee = head
+billboard.Size = UDim2.new(2, 0, 1, 0)
+billboard.StudsOffset = Vector3.new(0, 4, 0)
+billboard.AlwaysOnTop = true
+billboard.Parent = Fredbear
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.fromScale(1, 1)
+timerLabel.BackgroundTransparency = 1
+timerLabel.Text = "10"
+timerLabel.TextColor3 = Color3.new(1, 1, 1)
+timerLabel.TextStrokeTransparency = 0
+timerLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextSize = 50
+timerLabel.Parent = billboard
+
+local currentConnection = nil
+local currentPath = nil
+local isChasing = false
+local isDistracted = false
+local canKill = true
+
+local function followPath(targetPos)
+	if currentPath then currentPath:Destroy() end
+	currentPath = PathfindingService:CreatePath({AgentRadius = 5, AgentHeight = 7, AgentCanJump = true, AgentMaxSlope = 50, WaypointSpacing = 4, Costs = {Water = 20}})
+	local success = pcall(function() currentPath:ComputeAsync(rootPart.Position, targetPos) end)
+	if not success or currentPath.Status ~= Enum.PathStatus.Success then return false end
+	for _, waypoint in ipairs(currentPath:GetWaypoints()) do
+		if not (isChasing or isDistracted or wanderThread) then break end
+		if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+		humanoid:MoveTo(waypoint.Position)
+		humanoid.MoveToFinished:Wait(3)
+	end
+	return true
+end
+
+local function getSafeWanderPos()
+	local rayOrigin = rootPart.Position + Vector3.new(0, 50, 0)
+	local rayDirection = Vector3.new(0, -100, 0)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	raycastParams.FilterDescendantsInstances = {Fredbear}
+	local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+	local y = result and result.Position.Y + 5 or rootPart.Position.Y + 5
+	local pos = rootPart.Position + Vector3.new(math.random(-45,45), 0, math.random(-45,45))
+	return Vector3.new(pos.X, y, pos.Z)
+end
+
+local function startFootstepLoop(interval)
+	if footstepThread then task.cancel(footstepThread) end
+	footstepThread = task.spawn(function()
+		while true do
+			footstepSound.TimePosition = 0
+			footstepSound:Play()
+			task.wait(interval)
+		end
+	end)
+end
+
+local function stopFootstepLoop()
+	if footstepThread then
+		task.cancel(footstepThread)
+		footstepThread = nil
+	end
+end
+
+local function updateFootstepLoop()
+	if not currentAnim or not currentAnim.KeyframeSequence then
+		stopFootstepLoop()
+		return
+	end
+	if currentAnim.KeyframeSequence == WalkKeyframe then
+		startFootstepLoop(0.6)
+	elseif currentAnim.KeyframeSequence == RunKeyframe then
+		startFootstepLoop(0.1)
+	else
+		stopFootstepLoop()
+	end
+end
+
+local function startWandering()
+	if wanderThread then task.cancel(wanderThread) end
+	PlayKeyframeSequence(Fredbear, WalkKeyframe, 1.0)
+	humanoid.WalkSpeed = 17
+	updateFootstepLoop()
+
+	wanderThread = task.spawn(function()
+		while not isChasing and not isDistracted do
+			local pos = getSafeWanderPos()
+			followPath(pos)
+			task.wait(0.1)
+		end
+	end)
+end
+
+local function startChasing()
+	if chaseThread then task.cancel(chaseThread) end
+	if wanderThread then task.cancel(wanderThread) wanderThread = nil end
+	PlayKeyframeSequence(Fredbear, RunKeyframe, 1.4)
+	humanoid.WalkSpeed = Chase_Speed
+	updateFootstepLoop()
+
+	chaseThread = task.spawn(function()
+		while isChasing do
+			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				humanoid:MoveTo(player.Character.HumanoidRootPart.Position)
+			end
+			task.wait(0.1)
+		end
+	end)
+end
+
+local function killPlayer()
+	if not canKill then return end
+	canKill = false
+	jumpscareSound1:Play()
+	jumpscareSound1.Ended:Connect(function() jumpscareSound2:Play() end)
+	playJumpscareFrames()
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		player.Character.Humanoid.Health = 0
+	end
+end
+
+local function startAI()
+	if currentConnection then currentConnection:Disconnect() end
+	if currentPath then currentPath:Destroy() end
+	if wanderThread then task.cancel(wanderThread) wanderThread = nil end
+	if chaseThread then task.cancel(chaseThread) chaseThread = nil end
+	if distractThread then task.cancel(distractThread) distractThread = nil end
+	stopFootstepLoop()
+
+	isChasing = false
+	isDistracted = false
+	canKill = true
+	canStartChasing = true
+	startWandering()
+
+	currentConnection = RunService.Heartbeat:Connect(function()
+		if not rootPart or not rootPart.Parent then return end
+		hitbox.CFrame = rootPart.CFrame * CFrame.new(0, 0, -6)
+
+		local targetHrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not targetHrp then return end
+
+		local dist = (targetHrp.Position - rootPart.Position).Magnitude
+
+		if isDistracted then
+			if dist <= 8 then
+				isDistracted = false
+				if distractThread then task.cancel(distractThread) distractThread = nil end
+				stopFootstepLoop()
+				local lookAnim = PlayKeyframeSequence(Fredbear, LookAroundKeyframe, 1.0)
+				humanoid:MoveTo(rootPart.Position)
+				task.delay(lookAnim.Length + 0.2, startWandering)
+			end
+			return
+		end
+
+		if canStartChasing and dist <= Sight_Range then
+			if not isChasing then
+				isChasing = true
+				startChasing()
+			end
+		else
+			if isChasing and (not canStartChasing or dist > Sight_Range) then
+				isChasing = false
+				if chaseThread then task.cancel(chaseThread) chaseThread = nil end
+				startWandering()
+			end
+		end
+	end)
+
+	hitbox.Touched:Connect(function(hit)
+		if canKill and hit and hit.Parent == player.Character then killPlayer() end
+	end)
+
+	rootPart.Touched:Connect(function(hit)
+		if canKill and hit and hit.Parent == player.Character then killPlayer() end
+	end)
+end
+
+button.MouseButton1Click:Connect(function()
+	if isChasing or isDistracted then return end
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+
+	distractSound:Play()
+	isDistracted = true
+	if wanderThread then task.cancel(wanderThread) wanderThread = nil end
+	if chaseThread then task.cancel(chaseThread) chaseThread = nil end
+	stopFootstepLoop()
+
+	PlayKeyframeSequence(Fredbear, RunKeyframe, 1.4)
+	humanoid.WalkSpeed = Chase_Speed
+	updateFootstepLoop()
+
+	local targetPos = player.Character.HumanoidRootPart.Position
+	distractThread = task.spawn(function()
+		followPath(targetPos)
+		if isDistracted then
+			isDistracted = false
+			stopFootstepLoop()
+			local lookAnim = PlayKeyframeSequence(Fredbear, LookAroundKeyframe, 1.0)
+			task.delay(lookAnim.Length + 0.2, startWandering)
+		end
+	end)
+end)
+
+player.CharacterAdded:Connect(function()
+    jumpscareGui.Enabled = false
+	task.wait(5)
+	canStartChasing = true
+	startAI()
+end)
+
+player.CharacterRemoving:Connect(function()
+	canStartChasing = false
+	canKill = false
+end)
+
+local settingsGui = Instance.new("ScreenGui")
+settingsGui.ResetOnSpawn = false
+settingsGui.Parent = playerGui
+
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(0, 500, 0, 350)
+bg.Position = UDim2.new(0.5, -250, 0.5, -175)
+bg.BackgroundColor3 = Color3.fromRGB(15,15,15)
+bg.BorderSizePixel = 4
+bg.BorderColor3 = Color3.fromRGB(255,215,0)
+bg.Parent = settingsGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,60)
+title.BackgroundTransparency = 1
+title.Text = "Fredbear Settings"
+title.TextColor3 = Color3.fromRGB(255,215,0)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 40
+title.Parent = bg
+
+local speedTxt = Instance.new("TextLabel")
+speedTxt.Size = UDim2.new(0.4,0,0,50)
+speedTxt.Position = UDim2.new(0.1,0,0.25,0)
+speedTxt.BackgroundTransparency = 1
+speedTxt.Text = "Speed:"
+speedTxt.TextColor3 = Color3.new(1,1,1)
+speedTxt.Font = Enum.Font.GothamBold
+speedTxt.TextSize = 28
+speedTxt.Parent = bg
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.4,0,0,50)
+speedBox.Position = UDim2.new(0.5,0,0.25,0)
+speedBox.Text = "70"
+speedBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+speedBox.TextColor3 = Color3.new(1,1,1)
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 26
+speedBox.Parent = bg
+
+local sightTxt = Instance.new("TextLabel")
+sightTxt.Size = UDim2.new(0.4,0,0,50)
+sightTxt.Position = UDim2.new(0.1,0,0.45,0)
+sightTxt.BackgroundTransparency = 1
+sightTxt.Text = "Sight:"
+sightTxt.TextColor3 = Color3.new(1,1,1)
+sightTxt.Font = Enum.Font.GothamBold
+sightTxt.TextSize = 28
+sightTxt.Parent = bg
+
+local sightBox = Instance.new("TextBox")
+sightBox.Size = UDim2.new(0.4,0,0,50)
+sightBox.Position = UDim2.new(0.5,0,0.45,0)
+sightBox.Text = "50"
+sightBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+sightBox.TextColor3 = Color3.new(1,1,1)
+sightBox.Font = Enum.Font.Gotham
+sightBox.TextSize = 26
+sightBox.Parent = bg
+
+local startBtn = Instance.new("TextButton")
+startBtn.Size = UDim2.new(0.8,0,0,70)
+startBtn.Position = UDim2.new(0.1,0,0.75,0)
+startBtn.BackgroundColor3 = Color3.fromRGB(255,215,0)
+startBtn.Text = "Spawn Fredbear"
+startBtn.TextColor3 = Color3.new(0,0,0)
+startBtn.Font = Enum.Font.GothamBlack
+startBtn.TextSize = 36
+startBtn.Parent = bg
+
+startBtn.MouseButton1Click:Connect(function()
+	local speed = tonumber(speedBox.Text)
+	local sight = tonumber(sightBox.Text)
+	if speed and speed > 0 then Chase_Speed = speed end
+	if sight and sight > 0 then Sight_Range = sight end
+	
+	settingsGui:Destroy()
+	NPC.Parent = workspace
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	local initialPos = hrp.Position + Vector3.new(math.random(-25,25), 0, math.random(-25,25))
+	Fredbear:PivotTo(CFrame.new(initialPos))
+	
+	task.spawn(function()
+		for i = 10, 1, -1 do
+			timerLabel.Text = tostring(i)
+			task.wait(1)
+		end
+		timerLabel.Text = "0"
+		task.wait(0.5)
+		billboard:Destroy()
+		startAI()
+	end)
+end)
