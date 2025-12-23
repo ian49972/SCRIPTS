@@ -194,15 +194,10 @@ distractSound.SoundId = "rbxassetid://105462937449561"
 distractSound.Volume = 3
 distractSound.Parent = workspace
 
-local jumpscareSound1 = Instance.new("Sound")
-jumpscareSound1.SoundId = "rbxassetid://110192118545250"
-jumpscareSound1.Volume = 2
-jumpscareSound1.Parent = workspace
-
-local jumpscareSound2 = Instance.new("Sound")
-jumpscareSound2.SoundId = "rbxassetid://92290963744841"
-jumpscareSound2.Volume = 2
-jumpscareSound2.Parent = workspace
+local jumpscareSound = Instance.new("Sound")
+jumpscareSound.SoundId = "rbxassetid://85349172482807"
+jumpscareSound.Volume = 2
+jumpscareSound.Parent = workspace
 
 local hitbox = Instance.new("Part")
 hitbox.Size = Vector3.new(8, 6, 12)
@@ -360,8 +355,7 @@ end
 local function killPlayer()
 	if not canKill then return end
 	canKill = false
-	jumpscareSound1:Play()
-	jumpscareSound1.Ended:Connect(function() jumpscareSound2:Play() end)
+	jumpscareSound:Play()
 	playJumpscareFrames()
 	if player.Character and player.Character:FindFirstChild("Humanoid") then
 		player.Character.Humanoid.Health = 0
