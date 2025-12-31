@@ -489,7 +489,7 @@ tool.Activated:Connect(function()
 		}}, "player.Name")
 		task.delay(3.2, function()
 			CreateDialogue({{
-				Text = "Let us send this world back to the abyss.",
+				Text = "Let us send this world back into the abyss.",
 				TypeSpeed = 0.06,
 				Bold = true,
 				Italic = false,
