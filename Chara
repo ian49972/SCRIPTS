@@ -1,4 +1,5 @@
 writefile("CharaULT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/CharaULT.mp3"))
+writefile("CharaALT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/CharaALT.mp3"))
 writefile("CHARA.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/CHARA.rbxmx"))
 
 local Players = game:GetService("Players")
@@ -23,12 +24,15 @@ local assets = game:GetObjects(getcustomasset("CHARA.rbxmx"))[1]
 local cameraModel = assets:WaitForChild("Camera")
 local cameraPart = cameraModel:WaitForChild("camera")
 local cameraKfs = assets:WaitForChild("camera")
+local cameraKfs2 = assets:WaitForChild("camera2")
 local playerKfs = assets:WaitForChild("player")
+local playerKfs2 = assets:WaitForChild("player2")
 local assetsFolder = assets:WaitForChild("Assets")
 local torsoAttach = assetsFolder:WaitForChild("torso")
 local auraPart = assetsFolder:WaitForChild("aura")
 local eyeAttach = assetsFolder:WaitForChild("eye")
 local knifeModel = assets:WaitForChild("Knife")
+local heart2Model = assets:WaitForChild("Heart2")
 
 local Heart = game:GetObjects("rbxassetid://5045128262")[1]
 
@@ -339,6 +343,9 @@ end
 
 tool.Activated:Connect(function()
 	tool:Destroy()
+	
+	local isSpecial = math.random() < 0.5
+	
 	local hrp = character:WaitForChild("HumanoidRootPart")
 	local torso = character:WaitForChild("Torso")
 	local head = character:WaitForChild("Head")
@@ -364,48 +371,268 @@ tool.Activated:Connect(function()
 	end)
 	
 	local sound = Instance.new("Sound")
-	sound.SoundId = getcustomasset("CharaULT.mp3")
+	sound.SoundId = getcustomasset(isSpecial and "CharaALT.mp3" or "CharaULT.mp3")
 	sound.Volume = 1
 	sound.Parent = Workspace
 	sound:Play()
 	
-	eyeAttach.Parent = head
-	local impacto1 = eyeAttach:FindFirstChild("impacto1")
-	local otherEyeEmitter = nil
-	for _, emitter in ipairs(eyeAttach:GetDescendants()) do
-		if emitter:IsA("ParticleEmitter") and emitter.Name ~= "impacto1" then
-			otherEyeEmitter = emitter
-			break
-		end
-	end
+	local camAnim, playerAnim, animLength
 	
-	if impacto1 and impacto1:IsA("ParticleEmitter") then
-		impacto1.Enabled = true
-		task.delay(0.15, function()
-			impacto1.Enabled = false
+	if isSpecial then
+		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs2, 1.1)
+		playerAnim = PlayKeyframeSequence(character, playerKfs2, 1.1)
+		animLength = playerAnim.Length
+		
+		task.delay(1.5, function()
+			local highlight = Instance.new("Highlight")
+			highlight.FillTransparency = 1
+			highlight.OutlineColor = Color3.new(1, 1, 1)
+			highlight.OutlineTransparency = 0
+			highlight.Parent = character
+			
+			TweenService:Create(highlight, TweenInfo.new(2), {OutlineTransparency = 1}):Play()
+			task.delay(2, function()
+				highlight:Destroy()
+			end)
+		end)
+		
+		task.delay(1.5, function()
+			local heartModel = heart2Model:Clone()
+			heartModel.Parent = Workspace
+			heartModel:PivotTo(cameraPart.CFrame * CFrame.new(0, 0, -1))
+			
+			local determination = heartModel:FindFirstChild("Determination")
+			if determination then
+				local det1 = determination:FindFirstChild("Determination1")
+				local det2 = determination:FindFirstChild("Determination2")
+				
+				if det1 and det2 then
+					local originalDet1CFrame = det1.CFrame
+					local originalDet2CFrame = det2.CFrame
+					
+					det1.CFrame = originalDet1CFrame * CFrame.new(0, 0, -0.3)
+					det2.CFrame = originalDet2CFrame * CFrame.new(0, 0, 0.3)
+					
+					local heartHighlight = Instance.new("Highlight")
+					heartHighlight.FillColor = Color3.fromRGB(255, 0, 0)
+					heartHighlight.FillTransparency = 0
+					heartHighlight.OutlineColor = Color3.new(1, 1, 1)
+					heartHighlight.OutlineTransparency = 0
+					heartHighlight.Parent = heartModel
+					
+					task.delay(0.5, function()
+						TweenService:Create(det1, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = originalDet1CFrame}):Play()
+						TweenService:Create(det2, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = originalDet2CFrame}):Play()
+					end)
+				end
+			end
+			
+			task.delay(1.5, function()
+				if heartModel and heartModel.Parent then
+					heartModel:Destroy()
+				end
+			end)
+		end)
+		
+		task.delay(6, function()
+			CreateDialogue({{
+				Text = "Imm...",
+				TypeSpeed = 0.05,
+				Bold = false,
+				Italic = true,
+				TextStrokeColor = Color3.new(0, 0, 0),
+				HigherUp = false,
+				Shake = {Enabled = true, Intensity = 4, Lifetime = 0.4},
+				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+			}}, player.Name)
+			
+			task.delay(1, function()
+				CreateDialogue({{
+					Text = "Baaaaaaacck~",
+					TypeSpeed = 0.06,
+					Bold = false,
+					Italic = false,
+					TextStrokeColor = Color3.new(0, 0, 0),
+					HigherUp = true,
+					Shake = {Enabled = true, Intensity = 1, Lifetime = 0.5},
+					Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+				}}, player.Name)
+			end)
+		end)
+	else
+		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs, 1.1)
+		playerAnim = PlayKeyframeSequence(character, playerKfs, 1.1)
+		animLength = playerAnim.Length
+		
+		eyeAttach.Parent = head
+		local impacto1 = eyeAttach:FindFirstChild("impacto1")
+		local otherEyeEmitter = nil
+		for _, emitter in ipairs(eyeAttach:GetDescendants()) do
+			if emitter:IsA("ParticleEmitter") and emitter.Name ~= "impacto1" then
+				otherEyeEmitter = emitter
+				break
+			end
+		end
+		
+		if impacto1 and impacto1:IsA("ParticleEmitter") then
+			impacto1.Enabled = true
+			task.delay(0.15, function()
+				impacto1.Enabled = false
+			end)
+		end
+		
+		if otherEyeEmitter then
+			otherEyeEmitter.Enabled = true
+		end
+		
+		task.delay(2, function()
+			if eyeAttach.Parent then
+				eyeAttach:Destroy()
+			end
+		end)
+		
+		task.delay(2.7, function()
+			TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 0}):Play()
+		end)
+		
+		task.delay(10.5, function()
+			TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
+		end)
+		
+		task.delay(4, function()
+			CreateDialogue({{
+				Text = "Since",
+				TypeSpeed = 0.03,
+				Bold = false,
+				Italic = false,
+				TextStrokeColor = Color3.new(0, 0, 0),
+				HigherUp = false,
+				Shake = {Enabled = true, Intensity = 3, Lifetime = 0.3},
+				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+			}}, "player.Name")
+		end)
+		
+		task.delay(4.6, function()
+			CreateDialogue({{
+				Text = "WHEN",
+				TypeSpeed = 0.03,
+				Bold = true,
+				Italic = false,
+				TextStrokeColor = Color3.new(0, 0, 0),
+				HigherUp = true,
+				Shake = {Enabled = true, Intensity = 6, Lifetime = 0.4},
+				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+			}}, "player.Name")
+		end)
+		
+		task.delay(5, function()
+			CreateDialogue({{
+				Text = "Were you the one in control??",
+				TypeSpeed = 0.05,
+				Bold = false,
+				Italic = false,
+				TextStrokeColor = Color3.new(0, 0, 0),
+				HigherUp = false,
+				Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
+				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+			}}, "player.Name")
+		end)
+		
+		task.delay(15.5, function()
+			CreateDialogue({{
+				Text = "Now, partner.",
+				TypeSpeed = 0.05,
+				Bold = false,
+				Italic = true,
+				TextStrokeColor = Color3.new(0, 0, 0),
+				HigherUp = false,
+				Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
+				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+			}}, "player.Name")
+			task.delay(3.2, function()
+				CreateDialogue({{
+					Text = "Let us send this world back into the abyss.",
+					TypeSpeed = 0.06,
+					Bold = true,
+					Italic = false,
+					TextStrokeColor = Color3.new(0, 0, 0),
+					HigherUp = true,
+					Shake = {Enabled = true, Intensity = 5, Lifetime = 0.4},
+					Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
+				}}, "player.Name")
+			end)
+		end)
+		
+		task.delay(10.5, function()
+			local highlight = Instance.new("Highlight")
+			highlight.FillTransparency = 1
+			highlight.OutlineColor = Color3.new(1, 1, 1)
+			highlight.OutlineTransparency = 0
+			highlight.Parent = character
+			
+			local heartHighlight = Instance.new("Highlight")
+			heartHighlight.FillColor = Color3.fromRGB(255, 0, 0)
+			heartHighlight.FillTransparency = 0
+			heartHighlight.OutlineColor = Color3.new(1, 1, 1)
+			heartHighlight.OutlineTransparency = 0
+			heartHighlight.Parent = Heart
+			Heart.Transparency = 0
+			
+			local tween = TweenService:Create(highlight, TweenInfo.new(5), {OutlineTransparency = 1})
+			tween:Play()
+	  
+			task.wait(4)
+			Heart.Transparency = 1
+			
+			tween.Completed:Connect(function()
+				highlight:Destroy()
+				
+				torsoAttach.Parent = torso
+				for _, emitter in ipairs(torsoAttach:GetDescendants()) do
+					if emitter:IsA("ParticleEmitter") then
+						emitter.Enabled = true
+					end
+				end
+				
+				task.delay(3, function()
+					local auraObjects = {}
+					auraPart.Parent = head
+					for _, child in ipairs(auraPart:GetChildren()) do
+						child.Parent = head
+						table.insert(auraObjects, child)
+						if child:IsA("ParticleEmitter") then
+							child.Enabled = true
+						end
+					end
+					for _, attach in ipairs(head:GetChildren()) do
+						if attach:IsA("Attachment") and attach.Parent == head then
+							table.insert(auraObjects, attach)
+							for _, emitter in ipairs(attach:GetDescendants()) do
+								if emitter:IsA("ParticleEmitter") then
+									emitter.Enabled = true
+								end
+							end
+						end
+					end
+					auraPart:Destroy()
+					
+					task.delay(animLength - 11, function()
+						for _, obj in ipairs(auraObjects) do
+							if obj and obj.Parent then
+								obj:Destroy()
+							end
+						end
+					end)
+				end)
+			end)
+			
+			task.delay(2, function()
+				if heartHighlight and heartHighlight.Parent then
+					heartHighlight:Destroy()
+				end
+			end)
 		end)
 	end
-	
-	if otherEyeEmitter then
-		otherEyeEmitter.Enabled = true
-	end
-	
-	task.delay(2, function()
-		if eyeAttach.Parent then
-			eyeAttach:Destroy()
-		end
-	end)
-	
-	task.delay(2.7, function()
-		TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 0}):Play()
-	end)
-	
-	task.delay(10.5, function()
-		TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
-	end)
-	
-	local camAnim = PlayKeyframeSequence(cameraModel, cameraKfs, 1.1)
-	local playerAnim = PlayKeyframeSequence(character, playerKfs, 1.1)
 	
 	task.spawn(function()
 		camAnim.Play()
@@ -425,153 +652,21 @@ tool.Activated:Connect(function()
 	knifeMotor.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(0, 0, math.rad(-90)) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, math.rad(180), 0)
 	knifeMotor.Parent = rightArm
 
-	Heart.Anchored = false
-	Heart.CanCollide = false
-	Heart.Transparency = 1
-	Heart.Size = Vector3.new(1, 1, 1)
-	Heart.CFrame = torso.CFrame
-	Heart.Parent = character
-	
-	local heartWeld = Instance.new("WeldConstraint")
-	heartWeld.Part0 = torso
-	heartWeld.Part1 = Heart
-	heartWeld.Parent = Heart
-	
-	task.delay(4, function()
-		CreateDialogue({{
-			Text = "Since",
-			TypeSpeed = 0.03,
-			Bold = false,
-			Italic = false,
-			TextStrokeColor = Color3.new(0, 0, 0),
-			HigherUp = false,
-			Shake = {Enabled = true, Intensity = 3, Lifetime = 0.3},
-			Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-		}}, "player.Name")
-	end)
-	
-	task.delay(4.6, function()
-		CreateDialogue({{
-			Text = "WHEN",
-			TypeSpeed = 0.03,
-			Bold = true,
-			Italic = false,
-			TextStrokeColor = Color3.new(0, 0, 0),
-			HigherUp = true,
-			Shake = {Enabled = true, Intensity = 6, Lifetime = 0.4},
-			Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-		}}, "player.Name")
-	end)
-	
-	task.delay(5, function()
-		CreateDialogue({{
-			Text = "Were you the one in control??",
-			TypeSpeed = 0.05,
-			Bold = false,
-			Italic = false,
-			TextStrokeColor = Color3.new(0, 0, 0),
-			HigherUp = false,
-			Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
-			Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-		}}, "player.Name")
-	end)
-	
-	task.delay(15.5, function()
-		CreateDialogue({{
-			Text = "Now, partner.",
-			TypeSpeed = 0.05,
-			Bold = false,
-			Italic = true,
-			TextStrokeColor = Color3.new(0, 0, 0),
-			HigherUp = false,
-			Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
-			Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-		}}, "player.Name")
-		task.delay(3.2, function()
-			CreateDialogue({{
-				Text = "Let us send this world back into the abyss.",
-				TypeSpeed = 0.06,
-				Bold = true,
-				Italic = false,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = true,
-				Shake = {Enabled = true, Intensity = 5, Lifetime = 0.4},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, "player.Name")
-		end)
-	end)
-	
-	task.delay(10.5, function()
-		local highlight = Instance.new("Highlight")
-		highlight.FillTransparency = 1
-		highlight.OutlineColor = Color3.new(1, 1, 1)
-		highlight.OutlineTransparency = 0
-		highlight.Parent = character
-		
-		local heartHighlight = Instance.new("Highlight")
-		heartHighlight.FillColor = Color3.fromRGB(255, 0, 0)
-		heartHighlight.FillTransparency = 0
-		heartHighlight.OutlineColor = Color3.new(1, 1, 1)
-		heartHighlight.OutlineTransparency = 0
-		heartHighlight.Parent = Heart
-		Heart.Transparency = 0
-		
-		local tween = TweenService:Create(highlight, TweenInfo.new(5), {OutlineTransparency = 1})
-		tween:Play()
-  
-		task.wait(4)
+	if not isSpecial then
+		Heart.Anchored = false
+		Heart.CanCollide = false
 		Heart.Transparency = 1
+		Heart.Size = Vector3.new(1, 1, 1)
+		Heart.CFrame = torso.CFrame
+		Heart.Parent = character
 		
-		tween.Completed:Connect(function()
-			highlight:Destroy()
-			
-			torsoAttach.Parent = torso
-			for _, emitter in ipairs(torsoAttach:GetDescendants()) do
-				if emitter:IsA("ParticleEmitter") then
-					emitter.Enabled = true
-				end
-			end
-			
-			task.delay(3, function()
-				local auraObjects = {}
-				auraPart.Parent = head
-				for _, child in ipairs(auraPart:GetChildren()) do
-					child.Parent = head
-					table.insert(auraObjects, child)
-					if child:IsA("ParticleEmitter") then
-						child.Enabled = true
-					end
-				end
-				for _, attach in ipairs(head:GetChildren()) do
-					if attach:IsA("Attachment") and attach.Parent == head then
-						table.insert(auraObjects, attach)
-						for _, emitter in ipairs(attach:GetDescendants()) do
-							if emitter:IsA("ParticleEmitter") then
-								emitter.Enabled = true
-							end
-						end
-					end
-				end
-				auraPart:Destroy()
-				
-				task.delay(playerAnim.Length - 11, function()
-					for _, obj in ipairs(auraObjects) do
-						if obj and obj.Parent then
-							obj:Destroy()
-						end
-					end
-				end)
-			end)
-		end)
-		
-		task.delay(2, function()
-			if heartHighlight and heartHighlight.Parent then
-				heartHighlight:Destroy()
-			end
-		end)
-	end)
+		local heartWeld = Instance.new("WeldConstraint")
+		heartWeld.Part0 = torso
+		heartWeld.Part1 = Heart
+		heartWeld.Parent = Heart
+	end
 	
-	task.delay(playerAnim.Length, function()
+	task.delay(animLength, function()
 		camAnim.Stop()
 		playerAnim.Stop()
 		
@@ -591,7 +686,7 @@ tool.Activated:Connect(function()
 		cameraModel:Destroy()
 		if torsoAttach.Parent then torsoAttach:Destroy() end
 		knifeModel:Destroy()
-		Heart:Destroy()
+		if Heart.Parent then Heart:Destroy() end
 		
 		TweenService:Create(blackFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
 		task.delay(0.2, function()
