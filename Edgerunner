@@ -1,0 +1,533 @@
+writefile("Crazy.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Crazy.mp3"))
+writefile("Edgerunner.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/Edgerunner.rbxmx"))
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+local animator = humanoid:FindFirstChildOfClass("Animator")
+if animator then animator:Destroy() end
+
+local Assets = game:GetObjects(getcustomasset("Edgerunner.rbxmx"))[1]
+Assets.Parent = workspace
+
+local model = Assets:FindFirstChildWhichIsA("Model") or Assets
+local idleKS = model:FindFirstChild("Idle")
+local walkKS = model:FindFirstChild("Walk")
+local runKS = model:FindFirstChild("Run")
+local crazyKS = model:FindFirstChild("Crazy")
+
+local currentAnim = nil
+local isRunning = false
+local lastState = "idle"
+local crazyPlaying = false
+
+local activateSound = Instance.new("Sound")
+activateSound.SoundId = "rbxassetid://118534165523355"
+activateSound.Volume = 1
+activateSound.Parent = Workspace
+
+local deactivateSound = Instance.new("Sound")
+deactivateSound.SoundId = "rbxassetid://123844681344865"
+deactivateSound.Volume = 1
+deactivateSound.Parent = Workspace
+
+local footstepSound = Instance.new("Sound")
+footstepSound.SoundId = "rbxassetid://6563562192"
+footstepSound.Volume = 0.8
+footstepSound.Parent = rootPart
+
+local lastFootstepTime = 0
+
+local sandevistanGui = Instance.new("ScreenGui")
+sandevistanGui.Name = "SandevistanOverlay"
+sandevistanGui.IgnoreGuiInset = true
+sandevistanGui.ResetOnSpawn = false
+sandevistanGui.Parent = player:WaitForChild("PlayerGui")
+
+local overlayImage = Instance.new("ImageLabel")
+overlayImage.Size = UDim2.new(1, 0, 1, 0)
+overlayImage.Position = UDim2.new(0, 0, 0, 0)
+overlayImage.BackgroundTransparency = 1
+overlayImage.ImageTransparency = 1
+overlayImage.Image = "rbxassetid://6451420598"
+overlayImage.Parent = sandevistanGui
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult, Loop)
+	SpeedMult = SpeedMult or 1
+	Loop = Loop ~= false
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+	if #keyframes == 0 then return end
+
+	local motorMap = {}
+	local boneMap = {}
+	local valueMap = {}
+	local tweenList = {}
+
+	local function ResolveInstance(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, motor in ipairs(Model:GetDescendants()) do
+			if motor:IsA("Motor6D") and motor.Part1 and motor.Part0 then
+				if motor.Part1.Name == name and motor.Part0.Name == pose.Parent.Name then
+					motorMap[name] = motor
+					return motor, "Motor6D"
+				end
+			end
+		end
+
+		for _, bone in ipairs(Model:GetDescendants()) do
+			if bone:IsA("Bone") and bone.Name == name and bone.Parent and bone.Parent.Name == pose.Parent.Name then
+				boneMap[name] = bone
+				return bone, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	local poseTables = {}
+	for i, entry in ipairs(keyframes) do
+		local tab = {Time = entry.Time, Poses = {}}
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local instance, typ = ResolveInstance(pose)
+				if instance then
+					if not valueMap[pose.Name] then
+						local val = Instance.new("CFrameValue")
+						val.Name = "AnimValue"
+						val.Parent = instance
+						valueMap[pose.Name] = val
+					end
+					tab.Poses[pose.Name] = {
+						Instance = instance,
+						Type = typ,
+						CFrame = pose.CFrame,
+						Style = pose.EasingStyle,
+						Dir = pose.EasingDirection,
+					}
+				end
+			end
+		end
+		poseTables[i] = tab
+	end
+
+	for i = 1, #poseTables-1 do
+		local kf1 = poseTables[i]
+		local kf2 = poseTables[i+1]
+		local duration = (kf2.Time - kf1.Time) / SpeedMult
+		local group = {Duration = duration, Tweens = {}}
+
+		for name, data2 in pairs(kf2.Poses) do
+			local data1 = kf1.Poses[name] or poseTables[1].Poses[name]
+			if data1 then
+				local ti = TweenInfo.new(
+					duration,
+					EasingStyleMap[data2.Style] or Enum.EasingStyle.Linear,
+					EasingDirectionMap[data2.Dir] or Enum.EasingDirection.InOut
+				)
+				local tween = TweenService:Create(valueMap[name], ti, {Value = data2.CFrame})
+				group.Tweens[name] = tween
+			end
+		end
+		table.insert(tweenList, group)
+	end
+
+	local totalLength = poseTables[#poseTables].Time / SpeedMult
+
+	local heartbeatConn
+	heartbeatConn = RunService.Heartbeat:Connect(function()
+		for name, valObj in pairs(valueMap) do
+			local cf = valObj.Value
+			local entry = poseTables[1].Poses[name]
+			if entry then
+				if entry.Type == "Motor6D" then
+					entry.Instance.Transform = cf
+				else
+					entry.Instance.Transform = cf
+				end
+			end
+		end
+	end)
+
+	local playing = true
+	local function PlayOnce()
+		for _, group in ipairs(tweenList) do
+			if not playing then break end
+			for _, tween in pairs(group.Tweens) do
+				tween:Play()
+			end
+			task.wait(group.Duration)
+		end
+	end
+
+	if Loop then
+		task.spawn(function()
+			while playing and Model and Model.Parent do
+				PlayOnce()
+				task.wait()
+			end
+		end)
+	else
+		task.spawn(PlayOnce)
+	end
+
+	return {
+		Length = function() return totalLength end,
+		Stop = function()
+			playing = false
+			if heartbeatConn and heartbeatConn.Connected then heartbeatConn:Disconnect() end
+			for _, group in ipairs(tweenList) do
+				for _, tween in pairs(group.Tweens) do
+					tween:Cancel()
+				end
+			end
+			for _, v in pairs(valueMap) do
+				v:Destroy()
+			end
+			valueMap = {}
+		end
+	}
+end
+
+local function playAnim(ks)
+	if currentAnim then currentAnim:Stop() end
+	if ks then
+		currentAnim = PlayKeyframeSequence(character, ks, isRunning and 1.5 or 1.1, true)
+	end
+end
+
+local function playCrazy()
+	crazyPlaying = true
+	if currentAnim then currentAnim:Stop() end
+
+	rootPart.Anchored = true
+
+	local crazySound = Instance.new("Sound")
+	crazySound.SoundId = getcustomasset("Crazy.mp3")
+	crazySound.Volume = 1
+	crazySound.Parent = Workspace
+	crazySound:Play()
+
+	local crazyAnim = PlayKeyframeSequence(character, crazyKS, 1, false)
+
+	task.wait(4)
+
+	TweenService:Create(overlayImage, TweenInfo.new(0.8), {ImageTransparency = 1}):Play()
+
+	local originalBrightness = Lighting.Brightness
+	local originalAmbient = Lighting.Ambient
+	local originalColorShift = Lighting.ColorShift_Top
+
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Parent = Lighting
+	cc.Saturation = 1
+	cc.Contrast = 0.5
+	cc.Brightness = 0.2
+
+	local shakeConn
+	local startShake = tick()
+	shakeConn = RunService.RenderStepped:Connect(function()
+		if tick() - startShake > 3 then
+			shakeConn:Disconnect()
+			return
+		end
+		local offset = CFrame.new(
+			(math.random() - 0.5) * 0.8,
+			(math.random() - 0.5) * 0.8,
+			0
+		)
+		camera.CFrame = camera.CFrame * offset
+	end)
+
+	task.spawn(function()
+		local colors = {
+			Color3.fromRGB(255, 0, 0),
+			Color3.fromRGB(0, 255, 0),
+			Color3.fromRGB(0, 0, 255),
+			Color3.fromRGB(255, 255, 0),
+			Color3.fromRGB(255, 0, 255),
+			Color3.fromRGB(0, 255, 255)
+		}
+		local i = 1
+		while i <= #colors * 4 do
+			TweenService:Create(cc, TweenInfo.new(0.1), {TintColor = colors[i % #colors + 1]}):Play()
+			i = i + 1
+			task.wait(0.1)
+		end
+	end)
+
+	Lighting.Brightness = 3
+	Lighting.Ambient = Color3.fromRGB(255, 100, 100)
+	Lighting.ColorShift_Top = Color3.fromRGB(100, 0, 255)
+
+	task.wait(2)
+
+	TweenService:Create(cc, TweenInfo.new(0.5), {Saturation = 0, Contrast = 0, Brightness = 0, TintColor = Color3.new(1,1,1)}):Play()
+	task.wait(0.5)
+	cc:Destroy()
+
+	Lighting.Brightness = originalBrightness
+	Lighting.Ambient = originalAmbient
+	Lighting.ColorShift_Top = originalColorShift
+
+	task.wait(crazyAnim.Length() - 5)
+
+	crazyAnim:Stop()
+	crazySound:Destroy()
+	crazyPlaying = false
+	rootPart.Anchored = false
+
+	local moving = humanoid.MoveDirection.Magnitude > 0
+	playAnim(moving and (isRunning and runKS or walkKS) or idleKS)
+end
+
+local function createRunButton()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 80, 0, 80)
+	button.Position = UDim2.new(1, -100, 0.5, -40)
+	button.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+	button.Text = "RUN"
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Parent = screenGui
+
+	button.MouseButton1Click:Connect(function()
+		isRunning = not isRunning
+		button.BackgroundColor3 = isRunning and Color3.new(0.8, 0.2, 0.2) or Color3.new(0.2, 0.2, 0.2)
+		humanoid.WalkSpeed = isRunning and 28 or 16
+	end)
+end
+
+local timeScale = Instance.new("NumberValue")
+timeScale.Name = "TimeScale"
+timeScale.Value = 1
+timeScale.Parent = Workspace
+
+local colorCorrection = Instance.new("ColorCorrectionEffect")
+colorCorrection.Name = "SandevistanEffect"
+colorCorrection.Parent = Lighting
+
+local sandevistanActive = false
+local speedLock = nil
+local crazyTimer = nil
+local cloneTask = nil
+
+local colorSeq = {
+	Color3.fromRGB(75, 255, 33),
+	Color3.fromRGB(0, 240, 255),
+	Color3.fromRGB(244, 213, 253),
+	Color3.fromRGB(119, 34, 137),
+	Color3.fromRGB(248, 230, 2)
+}
+
+local effectSettings = {
+	Active = { Contrast = 0.5, Saturation = 0.25, TintColor = Color3.fromRGB(85, 255, 127) },
+	Inactive = { Contrast = 0, Saturation = 0, TintColor = Color3.new(1, 1, 1) }
+}
+
+local function flashEffect()
+	local gui = Instance.new("ScreenGui")
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,1,0)
+	frame.BackgroundColor3 = Color3.new(1,1,1)
+	frame.BackgroundTransparency = 1
+	frame.Parent = gui
+	TweenService:Create(frame, TweenInfo.new(0.05), {BackgroundTransparency = 0}):Play()
+	TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+	task.delay(0.35, function() if gui then gui:Destroy() end end)
+end
+
+local function spawnGhost()
+	if not character or not rootPart then return end
+	character.Archivable = true
+	local ghost = character:Clone()
+	ghost.Name = "GhostClone"
+	ghost.Parent = workspace
+	ghost:PivotTo(character:GetPivot() * CFrame.new(math.random(-3,3)/10, 0, math.random(-3,3)/10))
+
+	local ghostHum = ghost:FindFirstChildOfClass("Humanoid")
+	if ghostHum then ghostHum:Destroy() end
+
+	local head = ghost:FindFirstChild("Head")
+	local torso = ghost:FindFirstChild("UpperTorso") or ghost:FindFirstChild("Torso")
+	if head then head.Anchored = true head.CanCollide = false end
+	if torso then torso.Anchored = true torso.CanCollide = false end
+
+	for _, part in ipairs(ghost:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= head and part ~= torso then
+			part.Anchored = true
+			part.CanCollide = false
+			part.Transparency = 0
+		elseif part:IsA("Decal") then
+			part.Transparency = 0
+		end
+	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = colorSeq[1]
+	highlight.OutlineColor = colorSeq[1]
+	highlight.FillTransparency = 0.3
+	highlight.OutlineTransparency = 0.6
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Parent = ghost
+
+	local idx = 1
+	task.spawn(function()
+		while ghost.Parent do
+			idx = idx % #colorSeq + 1
+			TweenService:Create(highlight, TweenInfo.new(0.2), {
+				FillColor = colorSeq[idx],
+				OutlineColor = colorSeq[idx]
+			}):Play()
+			task.wait(0.2)
+		end
+	end)
+
+	task.delay(1, function()
+		if not ghost or not ghost.Parent then return end
+		TweenService:Create(highlight, TweenInfo.new(0.3), {
+			FillTransparency = 1,
+			OutlineTransparency = 1
+		}):Play()
+		for _, part in ipairs(ghost:GetDescendants()) do
+			if part:IsA("BasePart") or part:IsA("Decal") then
+				TweenService:Create(part, TweenInfo.new(0.3), {Transparency = 1}):Play()
+			end
+		end
+		task.delay(0.3, function()
+			if ghost and ghost.Parent then ghost:Destroy() end
+		end)
+	end)
+end
+
+local function lockOthers(freeze)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character then
+			for _, part in ipairs(p.Character:GetDescendants()) do
+				if part:IsA("BasePart") and part.Anchored ~= freeze then
+					part.Anchored = freeze
+				end
+			end
+		end
+	end
+end
+
+local function toggleSandevistan()
+	if crazyPlaying then return end
+
+	if sandevistanActive then
+		sandevistanActive = false
+		if crazyTimer then task.cancel(crazyTimer) end
+		if speedLock and speedLock.Connected then speedLock:Disconnect() end
+		if cloneTask then task.cancel(cloneTask) end
+		TweenService:Create(colorCorrection, TweenInfo.new(0.6), effectSettings.Inactive):Play()
+		TweenService:Create(timeScale, TweenInfo.new(0.6), {Value = 1}):Play()
+		TweenService:Create(overlayImage, TweenInfo.new(1), {ImageTransparency = 1}):Play()
+		lockOthers(false)
+		flashEffect()
+		deactivateSound.TimePosition = 0
+		deactivateSound:Play()
+	else
+		sandevistanActive = true
+		humanoid.WalkSpeed = isRunning and 28 or 16
+
+		speedLock = RunService.Heartbeat:Connect(function()
+			humanoid.WalkSpeed = isRunning and 28 or 16
+		end)
+
+		cloneTask = task.spawn(function()
+			while sandevistanActive do
+				spawnGhost()
+				task.wait(0.08)
+			end
+		end)
+
+		crazyTimer = task.delay(15, function()
+			if sandevistanActive then
+				sandevistanActive = false
+				if speedLock and speedLock.Connected then speedLock:Disconnect() end
+				if cloneTask then task.cancel(cloneTask) end
+				TweenService:Create(colorCorrection, TweenInfo.new(0.6), effectSettings.Inactive):Play()
+				TweenService:Create(timeScale, TweenInfo.new(0.6), {Value = 1}):Play()
+				lockOthers(false)
+				flashEffect()
+				deactivateSound.TimePosition = 0
+				deactivateSound:Play()
+				playCrazy()
+			end
+		end)
+
+		TweenService:Create(colorCorrection, TweenInfo.new(0.4), effectSettings.Active):Play()
+		TweenService:Create(timeScale, TweenInfo.new(0.4), {Value = 0.1}):Play()
+		TweenService:Create(overlayImage, TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {ImageTransparency = 0.7}):Play()
+		lockOthers(true)
+		flashEffect()
+		activateSound.TimePosition = 0
+		activateSound:Play()
+	end
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "Sandevistan"
+tool.RequiresHandle = false
+tool.CanBeDropped = false
+tool.Parent = player.Backpack
+
+tool.Activated:Connect(toggleSandevistan)
+
+createRunButton()
+playAnim(idleKS)
+
+RunService.Heartbeat:Connect(function()
+	if crazyPlaying then return end
+	local currentTime = tick()
+	if humanoid.MoveDirection.Magnitude > 0 and not sandevistanActive then
+		local interval = isRunning and 0.3 or 0.6
+		if currentTime - lastFootstepTime >= interval then
+			footstepSound.TimePosition = 0
+			footstepSound:Play()
+			lastFootstepTime = currentTime
+		end
+	end
+
+	local moving = humanoid.MoveDirection.Magnitude > 0
+	local newState = moving and (isRunning and "run" or "walk") or "idle"
+	if newState ~= lastState then
+		lastState = newState
+		playAnim(newState == "idle" and idleKS or newState == "walk" and walkKS or runKS)
+	end
+end)
