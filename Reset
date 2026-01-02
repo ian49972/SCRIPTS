@@ -208,7 +208,7 @@ local function EndDialogue(gui)
 end
 
 local function CreateDialogue(data, displayName)
-	displayName = player.Name
+	displayName = "Chara"
 	local DialogueUI = DialogueGui:Clone()
 	local posY = 0
 	local posX = 0
