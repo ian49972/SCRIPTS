@@ -1,6 +1,9 @@
 writefile("CharaULT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/CharaULT.mp3"))
 writefile("CharaALT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/CharaALT.mp3"))
 writefile("CHARA.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/CHARA.rbxmx"))
+writefile("Reset.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Reset.mp3"))
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
