@@ -2,8 +2,8 @@ writefile("CharaULT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/ref
 writefile("CharaALT.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/CharaALT.mp3"))
 writefile("CHARA.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/CHARA.rbxmx"))
 writefile("Reset.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Reset.mp3"))
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
+writefile("Atonement.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Atonement.mp3"))
+writefile("DeathCharge.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/DeathCharge.mp3"))
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -701,7 +701,10 @@ tool.Activated:Connect(function()
 				end)
 			end)
 		end)
-		
+
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Atonement"))()
+
 		task.delay(1, function()
 			screenGui:Destroy()
 		end)
