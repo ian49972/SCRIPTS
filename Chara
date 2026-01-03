@@ -5,6 +5,8 @@ writefile("Reset.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/h
 writefile("Atonement.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Atonement.mp3"))
 writefile("DeathCharge.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/DeathCharge.mp3"))
 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -19,7 +21,7 @@ local humanoid = character:WaitForChild("Humanoid")
 local backpack = player:WaitForChild("Backpack")
 
 local tool = Instance.new("Tool")
-tool.Name = "???"
+tool.Name = "Awakening"
 tool.RequiresHandle = false
 tool.Parent = backpack
 
@@ -702,8 +704,7 @@ tool.Activated:Connect(function()
 			end)
 		end)
 
-      loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Atonement"))()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Atonement"))()
 
 		task.delay(1, function()
 			screenGui:Destroy()
