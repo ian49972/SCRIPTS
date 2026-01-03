@@ -5,14 +5,13 @@ writefile("Reset.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/h
 writefile("Atonement.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/Atonement.mp3"))
 writefile("DeathCharge.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/DeathCharge.mp3"))
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local TextService = game:GetService("TextService")
 local CollectionService = game:GetService("CollectionService")
+local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -38,6 +37,12 @@ local auraPart = assetsFolder:WaitForChild("aura")
 local eyeAttach = assetsFolder:WaitForChild("eye")
 local knifeModel = assets:WaitForChild("Knife")
 local heart2Model = assets:WaitForChild("Heart2")
+local atonementCamModel = assets:WaitForChild("AtonementCam")
+local atonementHit = assets:WaitForChild("Keyframes"):WaitForChild("AtonementHit")
+local atonementVictim = assets:WaitForChild("Keyframes"):WaitForChild("AntonementHitVictim")
+local deathCharge = assets:WaitForChild("Keyframes"):WaitForChild("DeathCharge")
+local deathChargeVictim = assets:WaitForChild("Keyframes"):WaitForChild("DeathChargeVictim")
+local deathChargeCam = assets:WaitForChild("Keyframes"):WaitForChild("DeathChargeCam")
 
 local Heart = game:GetObjects("rbxassetid://5045128262")[1]
 
@@ -63,137 +68,6 @@ charaImage.BackgroundTransparency = 1
 charaImage.ImageTransparency = 1
 charaImage.Image = "rbxassetid://14446502063"
 charaImage.Parent = screenGui
-
-local EasingStyleMap = {
-	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
-	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
-	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
-	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
-	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
-}
-
-local EasingDirectionMap = {
-	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
-	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
-	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
-}
-
-local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
-	SpeedMult = SpeedMult or 1
-	local keyframes = {}
-	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
-		table.insert(keyframes, {Time = kf.Time, KF = kf})
-	end
-	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
-	if #keyframes == 0 then return end
-	local motorMap = {}
-	local boneMap = {}
-	local valueMap = {}
-	local tweenList = {}
-	local function ResolveInstance(pose)
-		local name = pose.Name
-		if motorMap[name] then return motorMap[name], "Motor6D" end
-		if boneMap[name] then return boneMap[name], "Bone" end
-		for _, motor in ipairs(Model:GetDescendants()) do
-			if motor:IsA("Motor6D") and motor.Part1 and motor.Part0 then
-				if motor.Part1.Name == name and motor.Part0.Name == pose.Parent.Name then
-					motorMap[name] = motor
-					return motor, "Motor6D"
-				end
-			end
-		end
-		for _, bone in ipairs(Model:GetDescendants()) do
-			if bone:IsA("Bone") and bone.Name == name and bone.Parent and bone.Parent.Name == pose.Parent.Name then
-				boneMap[name] = bone
-				return bone, "Bone"
-			end
-		end
-		return nil, nil
-	end
-	local poseTables = {}
-	for i, entry in ipairs(keyframes) do
-		local tab = {Time = entry.Time, Poses = {}}
-		for _, pose in ipairs(entry.KF:GetDescendants()) do
-			if pose:IsA("Pose") and pose.Weight > 0 then
-				local instance, typ = ResolveInstance(pose)
-				if instance then
-					if not valueMap[pose.Name] then
-						local val = Instance.new("CFrameValue")
-						val.Name = "AnimValue"
-						val.Parent = instance
-						valueMap[pose.Name] = val
-					end
-					tab.Poses[pose.Name] = {
-						Instance = instance,
-						Type = typ,
-						CFrame = pose.CFrame,
-						Style = pose.EasingStyle,
-						Dir = pose.EasingDirection,
-					}
-				end
-			end
-		end
-		poseTables[i] = tab
-	end
-	for i = 1, #poseTables-1 do
-		local kf1 = poseTables[i]
-		local kf2 = poseTables[i+1]
-		local duration = (kf2.Time - kf1.Time) / SpeedMult
-		local group = {Duration = duration, Tweens = {}}
-		for name, data2 in pairs(kf2.Poses) do
-			local data1 = kf1.Poses[name] or poseTables[1].Poses[name]
-			if data1 then
-				local ti = TweenInfo.new(
-					duration,
-					EasingStyleMap[data2.Style] or Enum.EasingStyle.Linear,
-					EasingDirectionMap[data2.Dir] or Enum.EasingDirection.InOut
-				)
-				local tween = TweenService:Create(valueMap[name], ti, {Value = data2.CFrame})
-				group.Tweens[name] = tween
-			end
-		end
-		table.insert(tweenList, group)
-	end
-	local function GetLength()
-		return poseTables[#poseTables].Time / SpeedMult
-	end
-	local heartbeatConn = RunService.Heartbeat:Connect(function()
-		for name, valObj in pairs(valueMap) do
-			local cf = valObj.Value
-			local entry = poseTables[1].Poses[name]
-			if entry then
-				if entry.Type == "Motor6D" then
-					entry.Instance.Transform = cf
-				else
-					entry.Instance.Transform = cf
-				end
-			end
-		end
-	end)
-	local function PlayOnce()
-		for _, group in ipairs(tweenList) do
-			for _, tween in pairs(group.Tweens) do
-				tween:Play()
-			end
-			task.wait(group.Duration)
-		end
-	end
-	return {
-		Length = GetLength(),
-		Stop = function()
-			if heartbeatConn then heartbeatConn:Disconnect() end
-			for _, group in ipairs(tweenList) do
-				for _, tween in pairs(group.Tweens) do
-					tween:Cancel()
-				end
-			end
-			for _, v in pairs(valueMap) do
-				v:Destroy()
-			end
-		end,
-		Play = PlayOnce,
-	}
-end
 
 local Object = game:GetObjects("rbxassetid://74714833540240")[1]
 Object.Parent = workspace
@@ -346,6 +220,199 @@ local function CreateDialogue(data, displayName)
 	end)
 end
 
+local knifeMeshes = {}
+for _, obj in ipairs(knifeModel:GetDescendants()) do
+	if obj:IsA("MeshPart") or obj:IsA("Part") then
+		table.insert(knifeMeshes, obj)
+	end
+end
+
+local camKnifeMeshes = {}
+local atonementCamKnife = atonementCamModel:FindFirstChild("Knife")
+if atonementCamKnife then
+	for _, obj in ipairs(atonementCamKnife:GetDescendants()) do
+		if obj:IsA("MeshPart") or obj:IsA("Part") then
+			table.insert(camKnifeMeshes, obj)
+		end
+	end
+end
+
+local function SetKnifeVisible(visible)
+	local transparency = visible and 0 or 1
+	for _, mesh in ipairs(knifeMeshes) do
+		if mesh and mesh.Parent then
+			mesh.Transparency = transparency
+		end
+	end
+end
+
+local function SetCamKnifeVisible(visible)
+	local transparency = visible and 0 or 1
+	for _, mesh in ipairs(camKnifeMeshes) do
+		if mesh and mesh.Parent then
+			mesh.Transparency = transparency
+		end
+	end
+end
+
+knifeModel.Parent = character
+SetKnifeVisible(false)
+
+local currentKnifeMotor = nil
+local camConn = nil
+local currentCamModel = nil
+
+local function CloneCharacter(targetChar)
+	targetChar.Archivable = true
+	local clone = targetChar:Clone()
+	targetChar.Archivable = false
+	return clone
+end
+
+local dummyNpc = nil
+
+local function CreateDummy()
+	if dummyNpc and dummyNpc.Parent then
+		dummyNpc:Destroy()
+	end
+	local obj = game:GetObjects("rbxassetid://74478360128080")[1]
+	if obj:FindFirstChild("HumanoidRootPart") then
+		obj.HumanoidRootPart.Anchored = true
+	end
+	for _, part in ipairs(obj:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+		end
+	end
+	dummyNpc = obj
+	return dummyNpc
+end
+
+local atonementTool = Instance.new("Tool")
+atonementTool.Name = "Atonement"
+atonementTool.RequiresHandle = false
+atonementTool.CanBeDropped = false
+
+local tStyle = {
+	[Enum.PoseEasingStyle.Linear] = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce] = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic] = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic] = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local tDirection = {
+	[Enum.PoseEasingDirection.In] = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out] = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+function PlayKeyframeSequence(Model, KeyFrameSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local AllKeyFrames = {}
+	for _, Keyframe in pairs(KeyFrameSequence:GetKeyframes()) do
+		table.insert(AllKeyFrames, {Time = Keyframe.Time, Keyframe = Keyframe})
+	end
+	table.sort(AllKeyFrames, function(a,b) return a.Time < b.Time end)
+
+	if #AllKeyFrames == 0 then return {getLength = function() return 0 end, stop = function() end} end
+
+	local motors, motorValues = {}, {}
+
+	local function GetMotorFromPose(Pose)
+		for _, v in pairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == Pose.Name and v.Part0 and v.Part0.Name == Pose.Parent.Name then
+				return v
+			end
+		end
+	end
+
+	for _, Keyframe in ipairs(AllKeyFrames) do
+		for _, Pose in pairs(Keyframe.Keyframe:GetDescendants()) do
+			if Pose:IsA("Pose") and Pose.Weight > 0 then
+				local Motor6D = motors[Pose.Name] or GetMotorFromPose(Pose)
+				if Motor6D then
+					motors[Pose.Name] = Motor6D
+					if not motorValues[Pose.Name] then
+						local motorVal = Instance.new("CFrameValue")
+						motorVal.Name = "MotorValue"
+						motorVal.Parent = Motor6D
+						motorVal.Value = Motor6D.Transform
+						motorValues[Pose.Name] = motorVal
+					end
+				end
+			end
+		end
+	end
+
+	local tweens = {}
+	local totalTime = 0
+	if #AllKeyFrames > 1 then
+		for i = 1, #AllKeyFrames - 1 do
+			local KF1, KF2 = AllKeyFrames[i], AllKeyFrames[i+1]
+			local duration = (KF2.Time - KF1.Time) / SpeedMult
+			totalTime += duration
+
+			for _, Pose in pairs(KF2.Keyframe:GetDescendants()) do
+				if Pose:IsA("Pose") and Pose.Weight > 0 and motors[Pose.Name] then
+					local tweenInfo = TweenInfo.new(
+						duration,
+						tStyle[Pose.EasingStyle] or Enum.EasingStyle.Linear,
+						tDirection[Pose.EasingDirection] or Enum.EasingDirection.InOut
+					)
+					table.insert(tweens, {
+						Tween = TweenService:Create(motorValues[Pose.Name], tweenInfo, {Value = Pose.CFrame}),
+						Delay = totalTime - duration
+					})
+				end
+			end
+		end
+	end
+
+	local function getLength()
+		return AllKeyFrames[#AllKeyFrames].Time / SpeedMult
+	end
+
+	local connection
+
+	local function play()
+		for _, data in ipairs(tweens) do
+			task.delay(data.Delay, function()
+				data.Tween:Play()
+			end)
+		end
+	end
+
+	connection = RunService.Heartbeat:Connect(function()
+		for name, motor in pairs(motors) do
+			if motorValues[name] then
+				motor.Transform = motorValues[name].Value
+			end
+		end
+	end)
+
+	task.spawn(function()
+		play()
+		task.wait(getLength())
+		connection:Disconnect()
+	end)
+
+	return {
+		getLength = getLength,
+		stop = function()
+			if connection then connection:Disconnect() end
+			for _, data in ipairs(tweens) do
+				if data.Tween then
+					data.Tween:Cancel()
+				end
+			end
+			for _, val in pairs(motorValues) do
+				if val then val:Destroy() end
+			end
+		end
+	}
+end
+
 tool.Activated:Connect(function()
 	tool:Destroy()
 	
@@ -371,7 +438,7 @@ tool.Activated:Connect(function()
 	camera.FieldOfView = 70
 	humanoid.CameraOffset = Vector3.new(0,0,0)
 	
-	local camConn = RunService.RenderStepped:Connect(function()
+	camConn = RunService.RenderStepped:Connect(function()
 		camera.CFrame = cameraPart.CFrame
 	end)
 	
@@ -381,94 +448,98 @@ tool.Activated:Connect(function()
 	sound.Parent = Workspace
 	sound:Play()
 	
+	SetKnifeVisible(true)
+	
 	local camAnim, playerAnim, animLength
 	
 	if isSpecial then
-		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs2, 1.1)
-		playerAnim = PlayKeyframeSequence(character, playerKfs2, 1.1)
-		animLength = playerAnim.Length
+		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs2, 1)
+		playerAnim = PlayKeyframeSequence(character, playerKfs2, 1)
+		animLength = playerAnim.getLength()
+	else
+		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs, 1)
+		playerAnim = PlayKeyframeSequence(character, playerKfs, 1)
+		animLength = playerAnim.getLength()
+	end
+	
+	local handle = knifeModel:FindFirstChild("Handle")
+	if handle then
+		handle.Anchored = false
+	end
+	
+	if currentKnifeMotor and currentKnifeMotor.Parent then
+		currentKnifeMotor:Destroy()
+	end
+	
+	currentKnifeMotor = Instance.new("Motor6D")
+	currentKnifeMotor.Name = "KnifeWeld"
+	currentKnifeMotor.Part0 = rightArm
+	currentKnifeMotor.Part1 = handle
+	currentKnifeMotor.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(0, 0, math.rad(-90)) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, math.rad(180), 0)
+	currentKnifeMotor.Parent = rightArm
+	
+	if not isSpecial then
+		Heart.Anchored = false
+		Heart.CanCollide = false
+		Heart.Transparency = 1
+		Heart.Size = Vector3.new(1, 1, 1)
+		Heart.CFrame = torso.CFrame
+		Heart.Parent = character
 		
+		local heartWeld = Instance.new("WeldConstraint")
+		heartWeld.Part0 = torso
+		heartWeld.Part1 = Heart
+		heartWeld.Parent = Heart
+	end
+	
+	if isSpecial then
 		task.delay(1.5, function()
 			local highlight = Instance.new("Highlight")
 			highlight.FillTransparency = 1
 			highlight.OutlineColor = Color3.new(1, 1, 1)
 			highlight.OutlineTransparency = 0
 			highlight.Parent = character
-			
 			TweenService:Create(highlight, TweenInfo.new(2), {OutlineTransparency = 1}):Play()
-			task.delay(2, function()
-				highlight:Destroy()
-			end)
+			task.delay(2, highlight.Destroy)
 		end)
 		
 		task.delay(1.5, function()
 			local heartModel = heart2Model:Clone()
 			heartModel.Parent = Workspace
 			heartModel:PivotTo(cameraPart.CFrame * CFrame.new(0, 0, -1))
-			
 			local determination = heartModel:FindFirstChild("Determination")
 			if determination then
 				local det1 = determination:FindFirstChild("Determination1")
 				local det2 = determination:FindFirstChild("Determination2")
-				
 				if det1 and det2 then
 					local originalDet1CFrame = det1.CFrame
 					local originalDet2CFrame = det2.CFrame
-					
 					det1.CFrame = originalDet1CFrame * CFrame.new(0, 0, -0.3)
 					det2.CFrame = originalDet2CFrame * CFrame.new(0, 0, 0.3)
-					
 					local heartHighlight = Instance.new("Highlight")
 					heartHighlight.FillColor = Color3.fromRGB(255, 0, 0)
 					heartHighlight.FillTransparency = 0
 					heartHighlight.OutlineColor = Color3.new(1, 1, 1)
 					heartHighlight.OutlineTransparency = 0
 					heartHighlight.Parent = heartModel
-					
 					task.delay(0.5, function()
 						TweenService:Create(det1, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = originalDet1CFrame}):Play()
 						TweenService:Create(det2, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = originalDet2CFrame}):Play()
 					end)
 				end
 			end
-			
 			task.delay(1.5, function()
-				if heartModel and heartModel.Parent then
-					heartModel:Destroy()
-				end
+				if heartModel and heartModel.Parent then heartModel:Destroy() end
 			end)
 		end)
 		
 		task.delay(6, function()
-			CreateDialogue({{
-				Text = "Imm...",
-				TypeSpeed = 0.05,
-				Bold = false,
-				Italic = true,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = false,
-				Shake = {Enabled = true, Intensity = 4, Lifetime = 0.4},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, player.Name)
-			
+			CreateDialogue({{Text = "Imm...", TypeSpeed = 0.05, Bold = false, Italic = true, TextStrokeColor = Color3.new(0,0,0), HigherUp = false, Shake = {Enabled = true, Intensity = 4, Lifetime = 0.4}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name)
 			task.delay(1, function()
-				CreateDialogue({{
-					Text = "Baaaaaaacck~",
-					TypeSpeed = 0.06,
-					Bold = false,
-					Italic = false,
-					TextStrokeColor = Color3.new(0, 0, 0),
-					HigherUp = true,
-					Shake = {Enabled = true, Intensity = 1, Lifetime = 0.5},
-					Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-				}}, player.Name)
+				CreateDialogue({{Text = "Baaaaaaacck~", TypeSpeed = 0.06, Bold = false, Italic = false, TextStrokeColor = Color3.new(0,0,0), HigherUp = true, Shake = {Enabled = true, Intensity = 1, Lifetime = 0.5}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name)
 			end)
 		end)
 	else
-		camAnim = PlayKeyframeSequence(cameraModel, cameraKfs, 1.1)
-		playerAnim = PlayKeyframeSequence(character, playerKfs, 1.1)
-		animLength = playerAnim.Length
-		
 		eyeAttach.Parent = head
 		local impacto1 = eyeAttach:FindFirstChild("impacto1")
 		local otherEyeEmitter = nil
@@ -478,94 +549,24 @@ tool.Activated:Connect(function()
 				break
 			end
 		end
-		
 		if impacto1 and impacto1:IsA("ParticleEmitter") then
 			impacto1.Enabled = true
-			task.delay(0.15, function()
-				impacto1.Enabled = false
-			end)
+			task.delay(0.15, function() impacto1.Enabled = false end)
 		end
-		
 		if otherEyeEmitter then
 			otherEyeEmitter.Enabled = true
 		end
+		task.delay(2, function() if eyeAttach.Parent then eyeAttach:Destroy() end end)
 		
-		task.delay(2, function()
-			if eyeAttach.Parent then
-				eyeAttach:Destroy()
-			end
-		end)
+		task.delay(2.7, function() TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 0}):Play() end)
+		task.delay(10.5, function() TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play() end)
 		
-		task.delay(2.7, function()
-			TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 0}):Play()
-		end)
-		
-		task.delay(10.5, function()
-			TweenService:Create(charaImage, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
-		end)
-		
-		task.delay(4, function()
-			CreateDialogue({{
-				Text = "Since",
-				TypeSpeed = 0.03,
-				Bold = false,
-				Italic = false,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = false,
-				Shake = {Enabled = true, Intensity = 3, Lifetime = 0.3},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, "player.Name")
-		end)
-		
-		task.delay(4.6, function()
-			CreateDialogue({{
-				Text = "WHEN",
-				TypeSpeed = 0.03,
-				Bold = true,
-				Italic = false,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = true,
-				Shake = {Enabled = true, Intensity = 6, Lifetime = 0.4},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, "player.Name")
-		end)
-		
-		task.delay(5, function()
-			CreateDialogue({{
-				Text = "Were you the one in control??",
-				TypeSpeed = 0.05,
-				Bold = false,
-				Italic = false,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = false,
-				Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, "player.Name")
-		end)
-		
+		task.delay(4, function() CreateDialogue({{Text = "Since", TypeSpeed = 0.03, Bold = false, Italic = false, TextStrokeColor = Color3.new(0,0,0), HigherUp = false, Shake = {Enabled = true, Intensity = 3, Lifetime = 0.3}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name) end)
+		task.delay(4.6, function() CreateDialogue({{Text = "WHEN", TypeSpeed = 0.03, Bold = true, Italic = false, TextStrokeColor = Color3.new(0,0,0), HigherUp = true, Shake = {Enabled = true, Intensity = 6, Lifetime = 0.4}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name) end)
+		task.delay(5, function() CreateDialogue({{Text = "Were you the one in control??", TypeSpeed = 0.05, Bold = false, Italic = false, TextStrokeColor = Color3.new(0,0,0), HigherUp = false, Shake = {Enabled = false}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name) end)
 		task.delay(15.5, function()
-			CreateDialogue({{
-				Text = "Now, partner.",
-				TypeSpeed = 0.05,
-				Bold = false,
-				Italic = true,
-				TextStrokeColor = Color3.new(0, 0, 0),
-				HigherUp = false,
-				Shake = {Enabled = false, Intensity = 0, Lifetime = 0},
-				Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-			}}, "player.Name")
-			task.delay(3.2, function()
-				CreateDialogue({{
-					Text = "Let us send this world back into the abyss.",
-					TypeSpeed = 0.06,
-					Bold = true,
-					Italic = false,
-					TextStrokeColor = Color3.new(0, 0, 0),
-					HigherUp = true,
-					Shake = {Enabled = true, Intensity = 5, Lifetime = 0.4},
-					Color = {Keypoints = {{Time = 0, Value = Color3.new(1, 0, 0)}, {Time = 1, Value = Color3.new(1, 0, 0)}}}
-				}}, "player.Name")
-			end)
+			CreateDialogue({{Text = "Now, partner.", TypeSpeed = 0.05, Bold = false, Italic = true, TextStrokeColor = Color3.new(0,0,0), HigherUp = false, Shake = {Enabled = false}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name)
+			task.delay(3.2, function() CreateDialogue({{Text = "Let us send this world back into the abyss.", TypeSpeed = 0.06, Bold = true, Italic = false, TextStrokeColor = Color3.new(0,0,0), HigherUp = true, Shake = {Enabled = true, Intensity = 5, Lifetime = 0.4}, Color = {Keypoints = {{Time = 0, Value = Color3.new(1,0,0)}, {Time = 1, Value = Color3.new(1,0,0)}}}}}, player.Name) end)
 		end)
 		
 		task.delay(10.5, function()
@@ -585,95 +586,47 @@ tool.Activated:Connect(function()
 			
 			local tween = TweenService:Create(highlight, TweenInfo.new(5), {OutlineTransparency = 1})
 			tween:Play()
-	  
 			task.wait(4)
 			Heart.Transparency = 1
+			tween.Completed:Wait()
+			highlight:Destroy()
 			
-			tween.Completed:Connect(function()
-				highlight:Destroy()
-				
-				torsoAttach.Parent = torso
-				for _, emitter in ipairs(torsoAttach:GetDescendants()) do
-					if emitter:IsA("ParticleEmitter") then
-						emitter.Enabled = true
+			torsoAttach.Parent = torso
+			for _, emitter in ipairs(torsoAttach:GetDescendants()) do
+				if emitter:IsA("ParticleEmitter") then emitter.Enabled = true end
+			end
+			
+			task.delay(3, function()
+				local auraObjects = {}
+				auraPart.Parent = head
+				for _, child in ipairs(auraPart:GetChildren()) do
+					child.Parent = head
+					table.insert(auraObjects, child)
+					if child:IsA("ParticleEmitter") then child.Enabled = true end
+				end
+				for _, attach in ipairs(head:GetChildren()) do
+					if attach:IsA("Attachment") then
+						table.insert(auraObjects, attach)
+						for _, emitter in ipairs(attach:GetDescendants()) do
+							if emitter:IsA("ParticleEmitter") then emitter.Enabled = true end
+						end
 					end
 				end
-				
-				task.delay(3, function()
-					local auraObjects = {}
-					auraPart.Parent = head
-					for _, child in ipairs(auraPart:GetChildren()) do
-						child.Parent = head
-						table.insert(auraObjects, child)
-						if child:IsA("ParticleEmitter") then
-							child.Enabled = true
-						end
+				auraPart:Destroy()
+				task.delay(animLength - 11, function()
+					for _, obj in ipairs(auraObjects) do
+						if obj and obj.Parent then obj:Destroy() end
 					end
-					for _, attach in ipairs(head:GetChildren()) do
-						if attach:IsA("Attachment") and attach.Parent == head then
-							table.insert(auraObjects, attach)
-							for _, emitter in ipairs(attach:GetDescendants()) do
-								if emitter:IsA("ParticleEmitter") then
-									emitter.Enabled = true
-								end
-							end
-						end
-					end
-					auraPart:Destroy()
-					
-					task.delay(animLength - 11, function()
-						for _, obj in ipairs(auraObjects) do
-							if obj and obj.Parent then
-								obj:Destroy()
-							end
-						end
-					end)
 				end)
 			end)
 			
-			task.delay(2, function()
-				if heartHighlight and heartHighlight.Parent then
-					heartHighlight:Destroy()
-				end
-			end)
+			task.delay(2, function() if heartHighlight and heartHighlight.Parent then heartHighlight:Destroy() end end)
 		end)
 	end
 	
-	task.spawn(function()
-		camAnim.Play()
-	end)
-	task.spawn(function()
-		playerAnim.Play()
-	end)
-	
-	local handle = knifeModel:FindFirstChild("Handle")
-	handle.Anchored = false
-	knifeModel.Parent = character
-	
-	local knifeMotor = Instance.new("Motor6D")
-	knifeMotor.Name = "KnifeWeld"
-	knifeMotor.Part0 = rightArm
-	knifeMotor.Part1 = handle
-	knifeMotor.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(0, 0, math.rad(-90)) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, math.rad(180), 0)
-	knifeMotor.Parent = rightArm
-
-	if not isSpecial then
-		Heart.Anchored = false
-		Heart.CanCollide = false
-		Heart.Transparency = 1
-		Heart.Size = Vector3.new(1, 1, 1)
-		Heart.CFrame = torso.CFrame
-		Heart.Parent = character
-		
-		local heartWeld = Instance.new("WeldConstraint")
-		heartWeld.Part0 = torso
-		heartWeld.Part1 = Heart
-		heartWeld.Parent = Heart
-	end
-	
 	task.delay(animLength, function()
-		camAnim.Stop()
-		playerAnim.Stop()
+		camAnim.stop()
+		playerAnim.stop()
 		
 		if camConn then camConn:Disconnect() end
 		
@@ -684,14 +637,14 @@ tool.Activated:Connect(function()
 		camera.FieldOfView = originalFieldOfView
 		
 		if not humanoid:FindFirstChildOfClass("Animator") then
-			local newAnimator = Instance.new("Animator")
-			newAnimator.Parent = humanoid
+			Instance.new("Animator").Parent = humanoid
 		end
 		
 		cameraModel:Destroy()
 		if torsoAttach.Parent then torsoAttach:Destroy() end
-		knifeModel:Destroy()
 		if Heart.Parent then Heart:Destroy() end
+		
+		SetKnifeVisible(false)
 		
 		TweenService:Create(blackFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0}):Play()
 		task.delay(0.2, function()
@@ -703,11 +656,187 @@ tool.Activated:Connect(function()
 				end)
 			end)
 		end)
+		
+		task.delay(1, function() screenGui:Destroy() end)
+		
+		atonementTool.Parent = backpack
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Reset"))()
+	end)
+end)
 
-       loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/Atonement"))()
-
-		task.delay(1, function()
-			screenGui:Destroy()
+atonementTool.Activated:Connect(function()
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	local head = character:WaitForChild("Head")
+	local rightArm = character:WaitForChild("Right Arm")
+	
+	local closestPlayer = nil
+	local closestDist = 50
+	local closestChar = nil
+	
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+			if dist < closestDist then
+				closestDist = dist
+				closestPlayer = p
+				closestChar = p.Character
+			end
+		end
+	end
+	
+	if not closestChar then
+		local dummy = CreateDummy()
+		if dummy and dummy:FindFirstChild("HumanoidRootPart") then
+			dummy.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+			closestChar = dummy
+		else
+			return
+		end
+	end
+	
+	local originalAnimator = humanoid:FindFirstChildOfClass("Animator")
+	if originalAnimator then originalAnimator:Destroy() end
+	
+	camera.CameraSubject = head
+	hrp.Anchored = true
+	
+	SetKnifeVisible(true)
+	
+	local handle = knifeModel:FindFirstChild("Handle")
+	if handle then handle.Anchored = false end
+	
+	if currentKnifeMotor and currentKnifeMotor.Parent then currentKnifeMotor:Destroy() end
+	
+	currentKnifeMotor = Instance.new("Motor6D")
+	currentKnifeMotor.Name = "RightGrip"
+	currentKnifeMotor.Part0 = rightArm
+	currentKnifeMotor.Part1 = handle
+	currentKnifeMotor.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(0, 0, math.rad(-90)) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, math.rad(180), 0)
+	currentKnifeMotor.Parent = rightArm
+	
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("Atonement.mp3")
+	sound.Volume = 1
+	sound.Parent = Workspace
+	sound:Play()
+	
+	local targetChar = closestChar
+	local playerAnim = PlayKeyframeSequence(character, atonementHit, 1.1)
+	local victimClone = CloneCharacter(targetChar)
+	victimClone.Parent = Workspace
+	for _, part in ipairs(victimClone:GetDescendants()) do
+		if part:IsA("BasePart") then part.CanCollide = false end
+	end
+	
+	local victimHrp = victimClone:FindFirstChild("HumanoidRootPart")
+	local victimHead = victimClone:FindFirstChild("Head")
+	local victimAnim = nil
+	local weld = nil
+	
+	if victimHrp then
+		victimHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(180), 0)
+		weld = Instance.new("WeldConstraint")
+		weld.Part0 = hrp
+		weld.Part1 = victimHrp
+		weld.Parent = hrp
+		victimAnim = PlayKeyframeSequence(victimClone, atonementVictim, 1.1)
+	end
+	
+	task.spawn(function()
+		task.wait(5)
+		if victimHead and victimHead.Parent then
+			camera.CameraSubject = victimHead
+		end
+	end)
+	
+	local firstDuration = math.max(playerAnim.getLength(), victimAnim and victimAnim.getLength() or 0)
+	
+	task.delay(firstDuration, function()
+		playerAnim.stop()
+		if victimAnim then victimAnim.stop() end
+		
+		local deathSound = Instance.new("Sound")
+		deathSound.SoundId = getcustomasset("DeathCharge.mp3")
+		deathSound.Volume = 1
+		deathSound.Parent = Workspace
+		deathSound:Play()
+		
+		currentCamModel = atonementCamModel:Clone()
+		currentCamModel:PivotTo(hrp.CFrame)
+		currentCamModel.Parent = Workspace
+		
+		SetCamKnifeVisible(true)
+		
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.FieldOfView = 50
+		
+		if camConn then camConn:Disconnect() end
+		camConn = RunService.RenderStepped:Connect(function()
+			local camPart = currentCamModel:FindFirstChild("Camera")
+			if camPart then camera.CFrame = camPart.CFrame end
+		end)
+		
+		local deathCamAnim = PlayKeyframeSequence(currentCamModel, deathChargeCam, 1)
+		local deathPlayerAnim = PlayKeyframeSequence(character, deathCharge, 1)
+		local deathVictimAnim = victimClone and PlayKeyframeSequence(victimClone, deathChargeVictim, 1)
+		
+		task.spawn(function()
+			task.wait(5)
+			SetCamKnifeVisible(false)
+			task.wait(3)
+			SetCamKnifeVisible(true)
+		end)
+		
+		local playerHighlight = Instance.new("Highlight")
+		playerHighlight.FillTransparency = 1
+		playerHighlight.OutlineColor = Color3.new(1, 1, 1)
+		playerHighlight.OutlineTransparency = 0
+		
+		local colorCorrection = Instance.new("ColorCorrectionEffect")
+		colorCorrection.Saturation = -1
+		colorCorrection.Contrast = 0.2
+		colorCorrection.Brightness = 0
+		
+		local sky = Instance.new("Sky")
+		sky.SkyboxBk = "rbxassetid://15465935058"
+		sky.SkyboxDn = "rbxassetid://15465935058"
+		sky.SkyboxFt = "rbxassetid://15465935058"
+		sky.SkyboxLf = "rbxassetid://15465935058"
+		sky.SkyboxRt = "rbxassetid://15465935058"
+		sky.SkyboxUp = "rbxassetid://15465935058"
+		
+		task.delay(8, function()
+			playerHighlight.Parent = character
+			colorCorrection.Parent = Lighting
+			sky.Parent = Lighting
+		end)
+		
+		local deathDuration = math.max(deathPlayerAnim.getLength(), deathVictimAnim and deathVictimAnim.getLength() or 0, deathCamAnim.getLength())
+		
+		task.delay(deathDuration, function()
+			deathPlayerAnim.stop()
+			if deathVictimAnim then deathVictimAnim.stop() end
+			deathCamAnim.stop()
+			
+			if camConn then camConn:Disconnect() camConn = nil end
+			
+			hrp.Anchored = false
+			camera.CameraType = originalCameraType
+			camera.CameraSubject = originalCameraSubject
+			camera.FieldOfView = originalFieldOfView
+			
+			if not humanoid:FindFirstChildOfClass("Animator") then
+				Instance.new("Animator").Parent = humanoid
+			end
+			
+			SetKnifeVisible(false)
+			
+			if weld and weld.Parent then weld:Destroy() end
+			if victimClone and victimClone.Parent then victimClone:Destroy() end
+			if currentCamModel and currentCamModel.Parent then currentCamModel:Destroy() end
+			if playerHighlight and playerHighlight.Parent then playerHighlight:Destroy() end
+			if colorCorrection and colorCorrection.Parent then colorCorrection:Destroy() end
+			if sky and sky.Parent then sky:Destroy() end
 		end)
 	end)
 end)
