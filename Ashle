@@ -1,0 +1,524 @@
+-- You can take this i don't really care
+
+writefile("Ashle.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/Ashle.rbxmx"))
+writefile("ASHLE.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/ASHLE.mp3"))
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TS = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local camera = workspace.CurrentCamera
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+local tool = Instance.new("Tool")
+tool.Name = "Cutscene"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+	if #keyframes == 0 then return {Stop = function() end} end
+
+	local motorMap   = {}
+	local boneMap    = {}
+	local valueMap   = {}
+	local tweenList  = {}
+	local totalDuration = 0
+
+	local function ResolveInstance(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name]  then return boneMap[name],  "Bone"    end
+		for _, motor in ipairs(Model:GetDescendants()) do
+			if motor:IsA("Motor6D") and motor.Part1 and motor.Part0 then
+				if motor.Part1.Name == name and motor.Part0.Name == pose.Parent.Name then
+					motorMap[name] = motor
+					return motor, "Motor6D"
+				end
+			end
+		end
+		for _, bone in ipairs(Model:GetDescendants()) do
+			if bone:IsA("Bone") and bone.Name == name and bone.Parent and bone.Parent.Name == pose.Parent.Name then
+				boneMap[name] = bone
+				return bone, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	local poseTables = {}
+	for i, entry in ipairs(keyframes) do
+		local tab = {Time = entry.Time, Poses = {}}
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local instance, typ = ResolveInstance(pose)
+				if instance then
+					if not valueMap[pose.Name] then
+						local val = Instance.new("CFrameValue")
+						val.Name = "AnimValue"
+						val.Parent = instance
+						valueMap[pose.Name] = val
+					end
+					tab.Poses[pose.Name] = {
+						Instance = instance,
+						Type     = typ,
+						CFrame   = pose.CFrame,
+						Style    = pose.EasingStyle,
+						Dir      = pose.EasingDirection,
+					}
+				end
+			end
+		end
+		poseTables[i] = tab
+	end
+
+	for i = 1, #poseTables-1 do
+		local kf1 = poseTables[i]
+		local kf2 = poseTables[i+1]
+		local duration = (kf2.Time - kf1.Time) / SpeedMult
+		totalDuration = totalDuration + duration
+		local group = {Duration = duration, Tweens = {}, TargetPoses = kf2.Poses}
+		for name, data2 in pairs(kf2.Poses) do
+			local data1 = kf1.Poses[name] or poseTables[1].Poses[name]
+			if data1 then
+				local ti = TweenInfo.new(duration, EasingStyleMap[data2.Style] or Enum.EasingStyle.Linear, EasingDirectionMap[data2.Dir] or Enum.EasingDirection.InOut)
+				local tween = TS:Create(valueMap[name], ti, {Value = data2.CFrame})
+				group.Tweens[name] = tween
+			end
+		end
+		table.insert(tweenList, group)
+	end
+
+	local heartbeatConn = RunService.Heartbeat:Connect(function()
+		for name, valObj in pairs(valueMap) do
+			local cf = valObj.Value
+			local entry = poseTables[1].Poses[name]
+			if entry then
+				entry.Instance.Transform = cf
+			end
+		end
+	end)
+
+	local playing = true
+	local animStartTime = tick()
+	task.spawn(function()
+		while playing and Model and Model.Parent do
+			for _, group in ipairs(tweenList) do
+				for _, tween in pairs(group.Tweens) do
+					tween:Play()
+				end
+				task.wait(group.Duration)
+			end
+		end
+		heartbeatConn:Disconnect()
+	end)
+
+	local obj = {
+		Stop = function()
+			playing = false
+			if heartbeatConn then heartbeatConn:Disconnect() end
+			for _, group in ipairs(tweenList) do
+				for _, tween in pairs(group.Tweens) do
+					tween:Cancel()
+				end
+			end
+			for _, v in pairs(valueMap) do
+				v:Destroy()
+			end
+		end,
+		tweenList = tweenList,
+		totalDuration = totalDuration,
+		startTime = animStartTime,
+		currentSpeed = SpeedMult
+	}
+
+	function obj:ChangeSpeed(newSpeed)
+		if newSpeed <= 0 then return end
+		local elapsed = tick() - self.startTime
+		local playedAtOldSpeed = elapsed * self.currentSpeed
+		local remainingAtOldSpeed = self.totalDuration - playedAtOldSpeed
+		if remainingAtOldSpeed <= 0 then return end
+
+		for _, group in ipairs(self.tweenList) do
+			for _, tween in pairs(group.Tweens) do
+				tween:Cancel()
+			end
+		end
+
+		local oldSpeed = self.currentSpeed
+		self.currentSpeed = newSpeed
+
+		for _, group in ipairs(self.tweenList) do
+			local newDuration = group.Duration / (newSpeed / oldSpeed)
+			group.Duration = newDuration
+
+			for name, oldTween in pairs(group.Tweens) do
+				local targetCF = group.TargetPoses[name].CFrame
+				local ti = TweenInfo.new(newDuration, oldTween.TweenInfo.EasingStyle, oldTween.TweenInfo.EasingDirection)
+				local newTween = TS:Create(valueMap[name], ti, {Value = targetCF})
+				group.Tweens[name] = newTween
+				newTween:Play()
+			end
+		end
+
+		self.startTime = tick() - (playedAtOldSpeed / newSpeed)
+	end
+
+	return obj
+end
+
+tool.Activated:Connect(function()
+	if not tool.Parent then return end
+	tool.Parent = nil
+
+	local mainModel = game:GetObjects(getcustomasset("Ashle.rbxmx"))[1]
+	mainModel.Parent = workspace
+
+	local lms = mainModel:WaitForChild("LMS")
+	local keyframesFolder = lms:WaitForChild("Keyframes")
+	local camRig = lms:WaitForChild("CameraRIG")
+
+	local mapModel = lms:FindFirstChild("Map")
+	if mapModel then
+		for _, obj in ipairs(mapModel:GetDescendants()) do
+			if obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+				obj.Brightness = obj.Brightness * 0.6
+			end
+		end
+	end
+
+	local TARGET_CFRAME = CFrame.new(0, 1092.75, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+
+	local PLAYER_OFFSET   = CFrame.new(0, 2, 0)
+	local CLONE_OFFSETS   = {
+		CFrame.new(0, 2, 0),
+		CFrame.new(0, 2, 0),
+		CFrame.new(0, 2, 0)
+	}
+	local CAMRIG_OFFSET   = CFrame.new(0,  -1, 0)
+
+	local function placeAtCFrame(obj, baseCFrame, offset)
+		if obj:IsA("Model") then
+			local root = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+			if root then
+				obj:SetPrimaryPartCFrame(baseCFrame * offset)
+			else
+				obj:PivotTo(baseCFrame * offset)
+			end
+		end
+	end
+
+	placeAtCFrame(camRig, TARGET_CFRAME, CAMRIG_OFFSET)
+
+	local camKf     = keyframesFolder:FindFirstChild("Camera")
+	local ashleKf   = keyframesFolder:FindFirstChild("Ashle")
+	local buddy1Kf  = keyframesFolder:FindFirstChild("Buddy1")
+	local buddy2Kf  = keyframesFolder:FindFirstChild("Buddy2")
+	local mainBuddyKf = keyframesFolder:FindFirstChild("MainBuddy")
+
+	if not camKf or not ashleKf then
+		mainModel:Destroy()
+		return
+	end
+
+	local function setTransparency(model, trans)
+		for _, part in ipairs(model:GetDescendants()) do
+			if part:IsA("BasePart") or part:IsA("MeshPart") then
+				if part ~= model:FindFirstChild("HumanoidRootPart") then
+					part.Transparency = trans
+				end
+			elseif part:IsA("Decal") or part:IsA("Texture") then
+				part.Transparency = trans
+			end
+		end
+	end
+
+	setTransparency(char, 1)
+	task.delay(7, function()
+		setTransparency(char, 0)
+	end)
+
+	char.Archivable = true
+	local ashleClone = char:Clone()
+	char.Archivable = false
+
+	ashleClone.Name = "AshleClone"
+	ashleClone.Parent = workspace
+
+	setTransparency(ashleClone, 1)
+	task.delay(9, function()
+		setTransparency(ashleClone, 0)
+	end)
+
+	local ashleHrp = ashleClone:FindFirstChild("HumanoidRootPart")
+	if ashleHrp then
+		ashleHrp.Anchored = true
+		ashleHrp.CanCollide = false
+	end
+
+	for _, desc in ipairs(ashleClone:GetDescendants()) do
+		if desc:IsA("Humanoid") then
+			desc.PlatformStand = true
+			desc.WalkSpeed = 0
+		elseif desc:IsA("Animator") then
+			desc:Destroy()
+		end
+	end
+
+	local function weldAccessoriesOnClone(cloneModel)
+		local rightArm = cloneModel:FindFirstChild("Right Arm") or cloneModel:FindFirstChild("RightUpperArm")
+		local leftArm  = cloneModel:FindFirstChild("Left Arm")  or cloneModel:FindFirstChild("LeftUpperArm")
+		if not rightArm or not leftArm then return end
+
+		local rigRightArm = mainModel:FindFirstChild("Ashle"):FindFirstChild("Right Arm") or mainModel:FindFirstChild("Ashle"):FindFirstChild("RightUpperArm")
+		local rigLeftArm  = mainModel:FindFirstChild("Ashle"):FindFirstChild("Left Arm")  or mainModel:FindFirstChild("Ashle"):FindFirstChild("LeftUpperArm")
+		if not rigRightArm or not rigLeftArm then return end
+
+		local gun2Template = rigRightArm:FindFirstChild("Gun_2")
+		if gun2Template then
+			local gun2 = gun2Template:Clone()
+			gun2.Transparency = 1
+			for _, d in ipairs(gun2:GetDescendants()) do
+				if d:IsA("Decal") or d:IsA("Texture") then d.Transparency = 1 end
+			end
+			task.delay(9, function()
+				gun2.Transparency = 0
+				for _, d in ipairs(gun2:GetDescendants()) do
+					if d:IsA("Decal") or d:IsA("Texture") then d.Transparency = 0 end
+				end
+			end)
+			gun2.CFrame = leftArm.CFrame * rigRightArm.CFrame:ToObjectSpace(gun2Template.CFrame)
+			gun2.Parent = leftArm
+			local motor = Instance.new("Motor6D")
+			motor.Name = "Gun_2Motor"
+			motor.Part0 = leftArm
+			motor.Part1 = gun2
+			motor.C0 = rigRightArm.CFrame:ToObjectSpace(gun2Template.CFrame)
+			motor.C1 = CFrame.new()
+			motor.Parent = leftArm
+		end
+
+		local briefcaseTemplate = rigLeftArm:FindFirstChild("Briefcase")
+		if briefcaseTemplate then
+			local briefcase = briefcaseTemplate:Clone()
+			briefcase.Transparency = 1
+			for _, d in ipairs(briefcase:GetDescendants()) do
+				if d:IsA("Decal") or d:IsA("Texture") then d.Transparency = 1 end
+			end
+			task.delay(9, function()
+				briefcase.Transparency = 0
+				for _, d in ipairs(briefcase:GetDescendants()) do
+					if d:IsA("Decal") or d:IsA("Texture") then d.Transparency = 0 end
+				end
+			end)
+			briefcase.CFrame = rightArm.CFrame * rigLeftArm.CFrame:ToObjectSpace(briefcaseTemplate.CFrame)
+			briefcase.Parent = rightArm
+			local motor = Instance.new("Motor6D")
+			motor.Name = "BriefcaseMotor"
+			motor.Part0 = rightArm
+			motor.Part1 = briefcase
+			motor.C0 = rigLeftArm.CFrame:ToObjectSpace(briefcaseTemplate.CFrame)
+			motor.C1 = CFrame.new()
+			motor.Parent = rightArm
+		end
+	end
+
+	weldAccessoriesOnClone(ashleClone)
+
+	placeAtCFrame(ashleClone, TARGET_CFRAME, PLAYER_OFFSET)
+
+	local clones = {}
+	local kfList = {buddy1Kf, buddy2Kf, mainBuddyKf}
+	local chosenKfs = {}
+
+	local otherPlayers = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			table.insert(otherPlayers, p.Character)
+		end
+	end
+
+	local bonkEmitter = lms:FindFirstChild("Bonk")
+	local bonkClone = nil
+
+	for i = 1, 3 do
+		local kf = kfList[math.random(1, #kfList)]
+		while table.find(chosenKfs, kf) do
+			kf = kfList[math.random(1, #kfList)]
+		end
+		table.insert(chosenKfs, kf)
+
+		local sourceChar
+		if #otherPlayers > 0 then
+			local randIndex = math.random(1, #otherPlayers)
+			sourceChar = otherPlayers[randIndex]
+			table.remove(otherPlayers, randIndex)
+		else
+			sourceChar = char
+		end
+
+		sourceChar.Archivable = true
+		local clone = sourceChar:Clone()
+		sourceChar.Archivable = false
+
+		clone.Name = "BuddyClone" .. i
+		clone.Parent = workspace
+
+		local cloneHrp = clone:FindFirstChild("HumanoidRootPart")
+		if cloneHrp then
+			cloneHrp.Anchored = true
+			cloneHrp.CanCollide = false
+		end
+
+		for _, desc in ipairs(clone:GetDescendants()) do
+			if desc:IsA("Humanoid") then
+				desc.PlatformStand = true
+				desc.WalkSpeed = 0
+			elseif desc:IsA("Animator") then
+				desc:Destroy()
+			end
+		end
+
+		if i == 1 and bonkEmitter and bonkEmitter:IsA("ParticleEmitter") then
+			local head = clone:FindFirstChild("Head")
+			if head then
+				bonkClone = bonkEmitter:Clone()
+				bonkClone.Parent = head
+				bonkClone.Enabled = false
+				task.delay(1.1,function()
+					if bonkClone then
+						bonkClone.Enabled = true
+					end
+				end)
+			end
+		end
+
+		task.delay(8,function()
+			if bonkClone then
+				bonkClone.Enabled = false
+				bonkClone:Destroy()
+			end
+		end)
+
+		clones[i] = {model = clone, kf = kf}
+
+		placeAtCFrame(clone, TARGET_CFRAME, CLONE_OFFSETS[i])
+	end
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	player.CameraMode = Enum.CameraMode.LockFirstPerson
+	hum.CameraOffset = Vector3.new(0,0,0)
+	camera.FieldOfView = 35
+
+	local cameraPart = camRig:FindFirstChild("CameraPart", true)
+	if not cameraPart then
+		cameraPart = camRig.PrimaryPart or camRig:FindFirstChildWhichIsA("BasePart", true)
+	end
+
+	RunService:BindToRenderStep("CinematicCam", Enum.RenderPriority.Camera.Value + 10, function()
+		if cameraPart and cameraPart.Parent then
+			camera.CFrame = cameraPart.CFrame
+		end
+	end)
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("ASHLE.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	Lighting.Brightness = 0.8
+	Lighting.GlobalShadows = true
+	Lighting.ClockTime = 0
+	Lighting.Ambient = Color3.fromRGB(40, 40, 60)
+	Lighting.OutdoorAmbient = Color3.fromRGB(20, 20, 40)
+	Lighting.ColorShift_Top = Color3.fromRGB(180, 140, 255)
+	Lighting.ExposureCompensation = -0.4
+
+	local camAnim = PlayKeyframeSequence(camRig, camKf, 1.1)
+	local ashleAnim = PlayKeyframeSequence(ashleClone, ashleKf, 1)
+
+	local cloneAnims = {}
+	for _, data in ipairs(clones) do
+		if data.kf then
+			local speed = 1
+			if data.kf.Name == "Buddy1" then
+				speed = 1.1 + 0.08
+			elseif data.kf.Name == "Buddy2" then
+				speed = 1
+			elseif data.kf.Name == "MainBuddy" then
+				speed = 0.8 + 0.05
+			end
+			local anim = PlayKeyframeSequence(data.model, data.kf, speed)
+			table.insert(cloneAnims, anim)
+		end
+	end
+
+	task.delay(5, function()
+		if camAnim and camAnim.ChangeSpeed then
+			camAnim:ChangeSpeed(1.4)
+		end
+	end)
+
+	task.spawn(function()
+		if camAnim and camAnim.totalDuration then
+			local adjustedDuration = (camAnim.totalDuration / camAnim.currentSpeed) + 3
+			task.wait(adjustedDuration)
+
+			camAnim:Stop()
+			ashleAnim:Stop()
+			for _, anim in ipairs(cloneAnims) do
+				anim:Stop()
+			end
+			sound:Stop()
+			RunService:UnbindFromRenderStep("CinematicCam")
+			camera.CameraType = Enum.CameraType.Custom
+			player.CameraMode = Enum.CameraMode.Classic
+			hum.CameraOffset = Vector3.new(0,0,0)
+			camera.FieldOfView = 70
+
+			mainModel:Destroy()
+			if workspace:FindFirstChild("AshleClone") then
+				workspace.AshleClone:Destroy()
+			end
+			for _, cl in ipairs(workspace:GetChildren()) do
+				if cl.Name:match("^BuddyClone%d$") then
+					cl:Destroy()
+				end
+			end
+
+			setTransparency(char, 0)
+
+			Lighting.Brightness = 2
+			Lighting.GlobalShadows = true
+			Lighting.ClockTime = 12
+			Lighting.Ambient = Color3.fromRGB(140, 140, 140)
+			Lighting.OutdoorAmbient = Color3.fromRGB(120, 120, 120)
+			Lighting.ColorShift_Top = Color3.fromRGB(255, 255, 255)
+			Lighting.ExposureCompensation = 0
+		end
+	end)
+end)
