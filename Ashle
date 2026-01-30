@@ -1,7 +1,6 @@
 -- kinda bad but i released it anyway
 
-writefile("AllBetsAreOff!.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/AllBetsAreOff!
-mp3"))
+writefile("AllBetsAreOff!.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/AllBetsAreOff!.mp3"))
 writefile("Ashle.rbxmx", game:HttpGet("https://github.com/ian49972/RBXMS/raw/refs/heads/main/Ashle.rbxmx"))
 writefile("ASHLE.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/ASHLE.mp3"))
 writefile("AshIntro.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/AshIntro.mp3"))
