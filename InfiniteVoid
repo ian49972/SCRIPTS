@@ -411,8 +411,6 @@ tool.Activated:Connect(function()
 	
 	task.wait(13)
 	
-	breakSound:Stop()
-	breakSound:Play()
 	
 	task.wait(1)
 	
@@ -426,8 +424,12 @@ tool.Activated:Connect(function()
 			obj.Enabled = false
 		end
 	end
-	
-	task.wait(2)
+
+    task.wait(1)
+    breakSound:Stop()
+	breakSound:Play()
+
+	task.wait(1)
 	
 	BreakDomain()
 	finalGui:Destroy()
