@@ -1,0 +1,407 @@
+local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then return end
+
+	local jointData = {}     
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+
+			local alpha = (nextPose.time > lastPose.time) and 
+				(timePos - lastPose.time) / (nextPose.time - lastPose.time) or 0
+
+			local easedAlpha = TweenService:GetValue(alpha,
+				EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear,
+				EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function() isPlaying = false; if conn then conn:Disconnect() end end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+local asset = game:GetObjects(getcustomasset("Gojo.rbxmx"))[1]
+asset.Parent = ReplicatedStorage
+
+local tool = Instance.new("Tool")
+tool.Name = "Hollow Purple"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local function createHollowPurpleGUI()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "GojoYapping"
+	screenGui.IgnoreGuiInset = true
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+
+	local blackFrame = Instance.new("Frame")
+	blackFrame.Size = UDim2.new(1, 0, 1, 0)
+	blackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+	blackFrame.BorderSizePixel = 0
+	blackFrame.Parent = screenGui
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(15, 15, 30)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+	}
+	gradient.Rotation = 90
+	gradient.Parent = blackFrame
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(0.9, 0, 0.25, 0)
+	textLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextScaled = true
+	textLabel.Font = Enum.Font.SciFi
+	textLabel.Text = "Oh, Well."
+	textLabel.TextColor3 = Color3.fromRGB(100, 160, 255)
+	textLabel.Parent = blackFrame
+
+	local textGradient = Instance.new("UIGradient")
+	textGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 170, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 230, 255))
+	}
+	textGradient.Parent = textLabel
+
+	return screenGui, textLabel
+end
+
+local originalBrightness = Lighting.Brightness
+local originalAmbient = Lighting.Ambient
+local originalClockTime = Lighting.ClockTime
+local originalLightingStyle = Lighting.LightingStyle or Enum.LightingStyle.Soft -- fallback
+
+tool.Activated:Connect(function()
+	local char = player.Character
+	if not char then return end
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+
+	local originalSpeed = hum.WalkSpeed
+	local originalAnimator = hum:FindFirstChild("Animator")
+	if originalAnimator then 
+		originalAnimator.Parent = nil 
+	end
+
+	Lighting.LightingStyle = Enum.LightingStyle.Realistic
+	TweenService:Create(Lighting, TweenInfo.new(2, Enum.EasingStyle.Quad), {
+		ClockTime = 0,
+		Brightness = 0.3,
+		Ambient = Color3.fromRGB(10, 10, 20)
+	}):Play()
+
+	local gui, textLabel = createHollowPurpleGUI()
+	task.spawn(function()
+		task.wait(3)
+		textLabel.Text = "Guess I'll be a little rough."
+		textLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+		
+		local tg = textLabel:FindFirstChildWhichIsA("UIGradient")
+		if tg then
+			tg.Color = ColorSequence.new{
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 110, 110)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 200, 180))
+			}
+		end
+		task.wait(2)
+		gui:Destroy()
+	end)
+
+	local hpFolder = asset:WaitForChild("Effects"):WaitForChild("HollowPurple"):Clone()
+
+	local blueOrb = hpFolder:FindFirstChild("BlueOrb") or hpFolder:FindFirstChild("Blue Orb")
+	local redOrb = hpFolder:FindFirstChild("RedOrb") or hpFolder:FindFirstChild("Red Orb")
+	local purple = hpFolder:FindFirstChild("Purple")
+	local purple2 = hpFolder:FindFirstChild("Purple2")
+
+	local blueWeld, redWeld, purpleWeld
+
+	if blueOrb then
+		blueOrb.CFrame = root.CFrame * CFrame.new(-5, 0, 8)
+		blueOrb.Anchored = true
+		blueOrb.Parent = workspace
+		
+		blueWeld = Instance.new("WeldConstraint")
+		blueWeld.Part0 = root
+		blueWeld.Part1 = blueOrb
+		blueWeld.Parent = blueOrb
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("Purple.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	hum.WalkSpeed = 0
+
+	task.wait(4)
+
+	local animPlayer = PlayKeyframeSequence(char, asset:WaitForChild("Anims"):WaitForChild("Purple"), 0.5 + 0.09)
+	animPlayer.Play()
+
+	task.wait(4)
+	if blueOrb then
+		local summon = blueOrb:FindFirstChild("Summon")
+		if summon then
+			for _, p in ipairs(summon:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = true end
+			end
+			task.wait(0.2)
+			for _, p in ipairs(summon:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = false end
+			end
+		end
+
+		local attA = blueOrb:FindFirstChild("AttachmentA")
+		if attA then
+			for _, obj in ipairs(attA:GetDescendants()) do
+				if obj:IsA("ParticleEmitter") then obj.Enabled = true
+				elseif obj:IsA("PointLight") then obj.Brightness = 1 end
+			end
+		end
+
+		local BGround = blueOrb:FindFirstChild("Ground")
+		if BGround then
+			for _, p in ipairs(BGround:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = true end
+			end
+		end
+	end
+
+	if redOrb then
+		redOrb.CFrame = root.CFrame * CFrame.new(5, 0, 8)
+		redOrb.Anchored = true
+		redOrb.Parent = workspace
+		
+		redWeld = Instance.new("WeldConstraint")
+		redWeld.Part0 = root
+		redWeld.Part1 = redOrb
+		redWeld.Parent = redOrb
+	end
+
+	task.wait(2)
+	if redOrb then
+		local summon = redOrb:FindFirstChild("Summon")
+		if summon then
+			for _, p in ipairs(summon:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = true end
+			end
+			task.wait(0.2)
+			for _, p in ipairs(summon:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = false end
+			end
+		end
+
+		local attA = redOrb:FindFirstChild("AttachmentA")
+		if attA then
+			for _, obj in ipairs(attA:GetDescendants()) do
+				if obj:IsA("ParticleEmitter") then obj.Enabled = true
+				elseif obj:IsA("PointLight") then obj.Brightness = 1 end
+			end
+		end
+
+		local Ground = redOrb:FindFirstChild("Ground")
+		if Ground then
+			for _, p in ipairs(Ground:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = true end
+			end
+		end
+	end
+
+	task.wait(1)
+	if blueWeld then blueWeld:Destroy() end
+	if redWeld then redWeld:Destroy() end
+
+	if blueOrb and redOrb then
+		TweenService:Create(blueOrb, TweenInfo.new(6.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
+			{CFrame = root.CFrame * CFrame.new(0.5, 1, 8)}):Play()
+		TweenService:Create(redOrb, TweenInfo.new(6.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
+			{CFrame = root.CFrame * CFrame.new(-0.5, 1, 8)}):Play()
+	end
+
+	task.wait(3.8)
+
+	if blueOrb then blueOrb:Destroy() end
+	if redOrb then redOrb:Destroy() end
+
+	if purple then
+		purple.CFrame = root.CFrame * CFrame.new(0, 10, -20)
+		purple.Anchored = true
+		purple.Parent = workspace
+		
+		purpleWeld = Instance.new("WeldConstraint")
+		purpleWeld.Part0 = root
+		purpleWeld.Part1 = purple
+		purpleWeld.Parent = purple
+	end
+
+	task.wait(7)
+
+	if purple then 
+		if purpleWeld then purpleWeld:Destroy() end
+		purple:Destroy() 
+	end
+
+	if purple2 then
+		purple2.Anchored = true
+		for _, v in ipairs(purple2:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.Anchored = true
+				v.CanCollide = false
+			end
+		end
+
+		local lookDirection = root.CFrame.LookVector
+		local spawnCFrame = root.CFrame * CFrame.new(0, 10, -8)
+		
+		purple2.CFrame = spawnCFrame
+		purple2.Rotation = Vector3.new(0, math.deg(math.atan2(lookDirection.X, lookDirection.Z)), 0)
+		
+		purple2.Parent = workspace
+
+		local currentCFrame = purple2.CFrame
+		local startTime = os.clock()
+		local duration = 15
+
+		local connection
+		connection = RunService.Heartbeat:Connect(function()
+			local elapsed = os.clock() - startTime
+			if elapsed >= duration or not purple2.Parent then
+				connection:Disconnect()
+				return
+			end
+
+			currentCFrame = currentCFrame + (lookDirection * 280 * 0.016)
+			purple2.CFrame = currentCFrame
+		end)
+
+		Debris:AddItem(purple2, duration)
+
+		task.wait(0.5)
+		TweenService:Create(Lighting, TweenInfo.new(3, Enum.EasingStyle.Quad), {
+			ClockTime = originalClockTime,
+			Brightness = originalBrightness,
+			Ambient = originalAmbient
+		}):Play()
+		Lighting.LightingStyle = originalLightingStyle
+	end
+
+	task.wait(1)
+
+	animPlayer.Stop()
+	if originalAnimator then 
+		originalAnimator.Parent = hum 
+	end
+	hum.WalkSpeed = originalSpeed
+
+	hpFolder:Destroy()
+end)

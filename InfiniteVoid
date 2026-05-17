@@ -1,0 +1,440 @@
+
+local tool = Instance.new("Tool")
+tool.Name = "Infinite Void"
+tool.RequiresHandle = false
+tool.Parent = game.Players.LocalPlayer:WaitForChild("Backpack")
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then return end
+
+	local jointData = {}     
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+
+			local alpha = (nextPose.time > lastPose.time) and 
+				(timePos - lastPose.time) / (nextPose.time - lastPose.time) or 0
+
+			local easedAlpha = TweenService:GetValue(alpha,
+				EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear,
+				EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function() isPlaying = false; if conn then conn:Disconnect() end end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+local asset = nil
+local infiniteVoidFolder = nil
+local domainFolder = nil
+local splatter = nil
+local domainPart = nil
+local linePart = nil
+local voidSky = nil
+
+local originalSpeed = 16
+local originalAnimator = nil
+local originalCFrame = nil
+local domainSound = nil
+local breakSound = nil
+
+local leftFingerMotor, rightFingerMotor = nil, nil
+local leftHandle, rightHandle = nil, nil
+
+local function ClearFingers()
+	if leftFingerMotor then leftFingerMotor:Destroy() end
+	if rightFingerMotor then rightFingerMotor:Destroy() end
+	if leftHandle then leftHandle:Destroy() end
+	if rightHandle then rightHandle:Destroy() end
+	
+	leftFingerMotor, rightFingerMotor = nil, nil
+	leftHandle, rightHandle = nil, nil
+end
+
+local function SpawnFingers()
+	ClearFingers()
+	
+	local success, model = pcall(function()
+		return game:GetObjects("rbxassetid://18637374258")[1]
+	end)
+	
+	if not success or not model then return end
+	
+	leftHandle = model:FindFirstChild("LeftHandle")
+	rightHandle = model:FindFirstChild("RightHandle")
+	
+	if not (leftHandle and rightHandle) then
+		model:Destroy()
+		return
+	end
+	
+	local char = player.Character
+	local leftArm = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftUpperArm")
+	local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightUpperArm")
+	
+	local skinColor = (leftArm and leftArm.Color) or (rightArm and rightArm.Color) or Color3.fromRGB(255, 204, 153)
+	local handOffset = CFrame.new(0, -0.88, 0)
+
+	local leftBase = leftHandle:FindFirstChildWhichIsA("BasePart") or leftHandle
+	for _, part in pairs(leftHandle:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Color = skinColor
+		end
+	end
+	
+	leftFingerMotor = Instance.new("Motor6D")
+	leftFingerMotor.Name = "LeftFingerJoint"
+	leftFingerMotor.Part0 = leftArm
+	leftFingerMotor.Part1 = leftBase
+	leftFingerMotor.C0 = handOffset
+	leftFingerMotor.C1 = CFrame.new()
+	leftFingerMotor.Parent = leftArm
+	leftHandle.Parent = char
+
+	local rightBase = rightHandle:FindFirstChildWhichIsA("BasePart") or rightHandle
+	for _, part in pairs(rightHandle:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Color = skinColor
+		end
+	end
+	
+	rightFingerMotor = Instance.new("Motor6D")
+	rightFingerMotor.Name = "RightFingerJoint"
+	rightFingerMotor.Part0 = rightArm
+	rightFingerMotor.Part1 = rightBase
+	rightFingerMotor.C0 = handOffset
+	rightFingerMotor.C1 = CFrame.new()
+	rightFingerMotor.Parent = rightArm
+	rightHandle.Parent = char
+
+	model:Destroy()
+end
+
+local function LoadAsset()
+	if asset then return end
+	asset = game:GetObjects(getcustomasset("Gojo.rbxmx"))[1]
+	asset.Parent = ReplicatedStorage
+	
+	infiniteVoidFolder = asset:WaitForChild("Effects"):WaitForChild("InfiniteVoid")
+	domainFolder = infiniteVoidFolder:WaitForChild("Domain")
+	splatter = infiniteVoidFolder:WaitForChild("Splatter")
+	domainPart = domainFolder:WaitForChild("Part")
+	linePart = domainFolder:WaitForChild("Line")
+	voidSky = domainFolder:FindFirstChild("VoidSky")
+
+	domainFolder.Parent = workspace
+	splatter.Parent = workspace
+end
+
+local function LoadSound()
+	if domainSound then return end
+	domainSound = Instance.new("Sound")
+	domainSound.SoundId = getcustomasset("Domain.mp3")
+	domainSound.Volume = 1
+	domainSound.Parent = workspace
+end
+
+local function LoadBreakSound()
+	if breakSound then return end
+	breakSound = Instance.new("Sound")
+	breakSound.SoundId = "rbxassetid://123029417877438"
+	breakSound.Volume = 1
+	breakSound.Parent = workspace
+end
+
+local function ResetForReuse()
+	ClearFingers()
+	
+	if domainFolder and domainFolder.Parent ~= workspace then
+		domainFolder.Parent = workspace
+	end
+	if splatter and splatter.Parent ~= workspace then
+		splatter.Parent = workspace
+	end
+	
+	if voidSky then voidSky.Parent = domainFolder end
+	
+	for _, obj in ipairs(domainFolder:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = false
+		end
+	end
+end
+
+local function DisableUnionCollision()
+	for _, obj in ipairs(domainFolder:GetDescendants()) do
+		if obj:IsA("UnionOperation") or obj.Name:lower():find("union") then
+			obj.CanCollide = false
+			obj.Anchored = true
+		end
+	end
+	domainPart.CanCollide = true
+	domainPart.Anchored = true
+end
+
+local function ResetSplatter()
+	splatter.Transparency = 1
+	splatter.CanCollide = false
+	
+	for _, v in ipairs(splatter:GetDescendants()) do
+		if v:IsA("BasePart") and v ~= splatter then
+			v.Transparency = 0
+			v.CanCollide = false
+		end
+	end
+end
+
+local function SetupDomain()
+	for _, obj in ipairs(domainFolder:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = false
+		end
+	end
+	for _, obj in ipairs(linePart:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = true
+		end
+	end
+end
+
+local function RestoreDomain()
+	for _, obj in ipairs(domainFolder:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = (obj.Parent ~= linePart and obj.Parent.Parent ~= linePart)
+		end
+	end
+end
+
+local function CreateWhiteScreen()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.IgnoreGuiInset = true
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+	
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,1,0)
+	frame.BackgroundColor3 = Color3.new(1,1,1)
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.Parent = screenGui
+	
+	return screenGui, frame
+end
+
+local function BreakDomain()
+	for _, obj in ipairs(domainFolder:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = false
+		end
+	end
+	if voidSky then voidSky.Parent = ReplicatedStorage end
+	domainFolder.Parent = ReplicatedStorage
+	splatter.Parent = ReplicatedStorage
+end
+
+tool.Activated:Connect(function()
+	LoadAsset()
+	LoadSound()
+	LoadBreakSound()
+	ResetForReuse()
+	
+	character = player.Character
+	if not character then return end
+	humanoid = character:WaitForChild("Humanoid")
+	root = character:WaitForChild("HumanoidRootPart")
+	
+	originalSpeed = humanoid.WalkSpeed
+	originalCFrame = root.CFrame
+	
+	originalAnimator = humanoid:FindFirstChild("Animator")
+	if originalAnimator then originalAnimator.Parent = nil end
+	
+	SpawnFingers()
+	
+	local keyframeSeq = asset:WaitForChild("Anims"):WaitForChild("Infinite_Void")
+	local animPlayer = PlayKeyframeSequence(character, keyframeSeq, 1)
+	animPlayer.Play()
+	
+	humanoid.WalkSpeed = 0
+	
+	ResetSplatter()
+	splatter.CFrame = root.CFrame * CFrame.new(0, -3.5, 0)
+	
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = splatter
+	weld.Parent = splatter
+	
+	domainSound:Stop()
+	domainSound:Play()
+
+	task.spawn(function()
+		task.wait(1.2)
+		animPlayer.Stop()
+	end)
+	
+	task.wait(4.5)
+	splatter.Parent = ReplicatedStorage
+	
+	DisableUnionCollision()
+	if voidSky then voidSky.Parent = Lighting end
+	
+	root.CFrame = domainPart.CFrame * CFrame.new(0, domainPart.Size.Y/2 + 13, 0)
+	root.Velocity = Vector3.zero
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	
+	SetupDomain()
+	
+	local linesGui, linesFrame = CreateWhiteScreen()
+	TweenService:Create(linesFrame, TweenInfo.new(4.5, Enum.EasingStyle.Linear), {BackgroundTransparency = 0}):Play()
+	
+	task.wait(4)
+	linesGui:Destroy()
+	
+	RestoreDomain()
+	humanoid.WalkSpeed = originalSpeed
+	
+	if originalAnimator then
+		originalAnimator.Parent = humanoid
+	end
+	ClearFingers()
+	
+	task.wait(13)
+	
+	breakSound:Stop()
+	breakSound:Play()
+	
+	task.wait(1)
+	
+	local finalGui, finalFrame = CreateWhiteScreen()
+	TweenService:Create(finalFrame, TweenInfo.new(4, Enum.EasingStyle.Linear), {BackgroundTransparency = 0}):Play()
+	
+	task.wait(4)
+	
+	for _, obj in ipairs(linePart:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+			obj.Enabled = false
+		end
+	end
+	
+	task.wait(2)
+	
+	BreakDomain()
+	finalGui:Destroy()
+	
+	if originalCFrame then
+		root.CFrame = originalCFrame
+	end
+	
+	humanoid.WalkSpeed = originalSpeed
+end)

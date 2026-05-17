@@ -1,0 +1,355 @@
+local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then return end
+
+	local jointData = {}     
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+
+			local alpha = (nextPose.time > lastPose.time) and 
+				(timePos - lastPose.time) / (nextPose.time - lastPose.time) or 0
+
+			local easedAlpha = TweenService:GetValue(alpha,
+				EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear,
+				EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function() isPlaying = false; if conn then conn:Disconnect() end end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+local asset = game:GetObjects(getcustomasset("Gojo.rbxmx"))[1]
+asset.Parent = ReplicatedStorage
+
+local tool = Instance.new("Tool")
+tool.Name = "Unlimited Hollow Purple"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+tool.Activated:Connect(function()
+	local char = player.Character
+	if not char then return end
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+	local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
+
+	local originalSpeed = hum.WalkSpeed
+	local originalHipHeight = hum.HipHeight
+	local originalAnimator = hum:FindFirstChild("Animator")
+	if originalAnimator then originalAnimator.Parent = nil end
+
+	hum.WalkSpeed = 0
+
+	local unlimitedFolder = asset:WaitForChild("Effects"):WaitForChild("UnlimitedPurple")
+
+	local blueArm   = unlimitedFolder:FindFirstChild("BlueArm")
+	local redArm    = unlimitedFolder:FindFirstChild("RedArm")
+	local redShot   = unlimitedFolder:FindFirstChild("RedShot")
+	local airEffect = unlimitedFolder:FindFirstChild("Air")
+
+	local bluePart     = unlimitedFolder:FindFirstChild("Blue"):Clone()
+	local redPart      = unlimitedFolder:FindFirstChild("Red"):Clone()
+	local purplePart   = unlimitedFolder:FindFirstChild("Purple"):Clone()
+	local explodePart  = unlimitedFolder:FindFirstChild("PurpleExplode"):Clone()
+
+	local animPlayer = PlayKeyframeSequence(char, asset:WaitForChild("Anims"):WaitForChild("UnlimitedPurple"), 1)
+	animPlayer.Play()
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("UnlimitedPurple.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	if blueArm then
+		blueArm = blueArm:Clone()
+		blueArm.Anchored = false
+		blueArm.CanCollide = false
+		blueArm.Parent = workspace
+		
+		local weld = blueArm:FindFirstChildWhichIsA("ManualWeld") or blueArm:FindFirstChildWhichIsA("Weld")
+		if weld then
+			weld.Part0 = rightArm
+			weld.Part1 = blueArm
+		end
+	end
+
+	task.wait(3)
+
+	if bluePart then
+		bluePart.Anchored = true
+		bluePart.CanCollide = false
+		bluePart.CFrame = (rightArm and rightArm.CFrame or root.CFrame) * CFrame.new(0, 0, -5)
+		bluePart.Parent = workspace
+
+		TweenService:Create(bluePart, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = bluePart.CFrame * CFrame.new(0, 3, -14)
+		}):Play()
+
+		if blueArm then blueArm:Destroy() end
+
+		task.wait(0.6)
+
+		local orbitStart = os.clock()
+		local orbitRadius = 32
+		local orbitSpeed = 3.8
+
+		local orbitConn = RunService.Heartbeat:Connect(function()
+			local t = os.clock() - orbitStart
+			local angle = t * orbitSpeed
+			local offset = Vector3.new(math.cos(angle) * orbitRadius, 4, math.sin(angle) * orbitRadius)
+			bluePart.CFrame = root.CFrame * CFrame.new(offset) * CFrame.Angles(0, angle * 1.6, 0)
+		end)
+
+		task.wait(2.5)
+
+		if redArm then
+			redArm = redArm:Clone()
+			redArm.Anchored = false
+			redArm.CanCollide = false
+			redArm.Parent = workspace
+			
+			local weld = redArm:FindFirstChildWhichIsA("ManualWeld") or redArm:FindFirstChildWhichIsA("Weld")
+			if weld then
+				weld.Part0 = rightArm
+				weld.Part1 = redArm
+			end
+		end
+
+		if redPart then
+			redPart.Anchored = true
+			redPart.CanCollide = false
+			redPart.CFrame = root.CFrame * CFrame.new(0, 6, -6)
+			redPart.Parent = workspace
+
+			TweenService:Create(redPart, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CFrame = redPart.CFrame * CFrame.new(0, 100, 0)
+			}):Play()
+
+			if redArm then redArm:Destroy() end
+
+			if redShot then
+				redShot = redShot:Clone()
+				redShot.Anchored = false
+				redShot.CanCollide = false
+				redShot.Parent = workspace
+				
+				local weld = redShot:FindFirstChildWhichIsA("ManualWeld") or redShot:FindFirstChildWhichIsA("Weld")
+				if weld then
+					weld.Part0 = root
+					weld.Part1 = redShot
+				end
+
+				for _, p in ipairs(redShot:GetDescendants()) do
+					if p:IsA("ParticleEmitter") then p.Enabled = true end
+				end
+				task.wait(0.2)
+				for _, p in ipairs(redShot:GetDescendants()) do
+					if p:IsA("ParticleEmitter") then p.Enabled = false end
+				end
+			end
+		end
+
+		task.wait(3)
+		
+		local targetHip = originalHipHeight + 90
+		TweenService:Create(hum, TweenInfo.new(9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			HipHeight = targetHip
+		}):Play()
+
+		if airEffect then
+			airEffect = airEffect:Clone()
+			airEffect.Anchored = false
+			airEffect.CanCollide = false
+			airEffect.Parent = workspace
+			
+			local weld = airEffect:FindFirstChildWhichIsA("ManualWeld") or airEffect:FindFirstChildWhichIsA("Weld")
+			if weld then
+				weld.Part0 = root
+				weld.Part1 = airEffect
+			end
+
+			for _, p in ipairs(airEffect:GetDescendants()) do
+				if p:IsA("ParticleEmitter") then p.Enabled = true end
+			end
+		end
+
+		task.wait(5)
+
+		if orbitConn then orbitConn:Disconnect() end
+
+		if bluePart then
+			TweenService:Create(bluePart, TweenInfo.new(1.2, Enum.EasingStyle.Quad), {
+				CFrame = root.CFrame * CFrame.new(8, 18, 0)
+			}):Play()
+		end
+		if redPart then
+			TweenService:Create(redPart, TweenInfo.new(1.2, Enum.EasingStyle.Quad), {
+				CFrame = root.CFrame * CFrame.new(-8, 18, 0)
+			}):Play()
+		end
+
+		task.wait(1)
+
+		if bluePart and redPart then
+			TweenService:Create(bluePart, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
+				CFrame = root.CFrame * CFrame.new(0, 20, 0)
+			}):Play()
+			TweenService:Create(redPart, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
+				CFrame = root.CFrame * CFrame.new(0, 20, 0)
+			}):Play()
+		end
+
+		task.wait(1.2)
+
+		if bluePart then bluePart:Destroy() end
+		if redPart then redPart:Destroy() end
+
+		if purplePart then
+			purplePart.Anchored = true
+			purplePart.CFrame = root.CFrame * CFrame.new(0, 22, 0)
+			purplePart.Parent = workspace
+		end
+
+		task.wait(2.3)
+		if purplePart then purplePart:Destroy() end
+
+		if explodePart then
+			explodePart.Anchored = true
+			explodePart.CFrame = root.CFrame * CFrame.new(0, 22, 0)
+			explodePart.Parent = workspace
+
+			for _, desc in ipairs(explodePart:GetDescendants()) do
+				if desc:IsA("ParticleEmitter") then desc.Enabled = true end
+			end
+
+			task.wait(0.35)
+
+			for _, desc in ipairs(explodePart:GetDescendants()) do
+				if desc:IsA("ParticleEmitter") then desc.Enabled = false end
+			end
+
+			Debris:AddItem(explodePart, 8)
+		end
+
+		if airEffect then 
+			task.delay(3, function()
+				if airEffect and airEffect.Parent then
+					airEffect:Destroy()
+				end
+			end)
+		end
+	end
+
+	task.wait(2)
+
+	animPlayer.Stop()
+	if originalAnimator then originalAnimator.Parent = hum end
+	hum.WalkSpeed = originalSpeed
+	hum.HipHeight = originalHipHeight
+end)

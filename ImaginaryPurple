@@ -1,0 +1,263 @@
+local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then return end
+
+	local jointData = {}     
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+	local connection
+
+	connection = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			if connection then connection:Disconnect() end
+			return
+		end
+
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+
+			local alpha = (nextPose.time > lastPose.time) and 
+				(timePos - lastPose.time) / (nextPose.time - lastPose.time) or 0
+
+			local easedAlpha = TweenService:GetValue(alpha,
+				EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear,
+				EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function() 
+			isPlaying = false 
+			if connection then connection:Disconnect() end 
+		end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+local asset = game:GetObjects(getcustomasset("Gojo.rbxmx"))[1]
+asset.Parent = ReplicatedStorage
+
+local tool = Instance.new("Tool")
+tool.Name = "Imaginary Hollow Purple"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+tool.Activated:Connect(function()
+	local char = player.Character
+	if not char then return end
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+	local rightArm = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
+
+	local originalSpeed = hum.WalkSpeed
+	local originalAnimator = hum:FindFirstChild("Animator")
+	if originalAnimator then originalAnimator.Parent = nil end
+
+	local camera = workspace.CurrentCamera
+	local originalCameraType = camera.CameraType
+	local originalCameraSubject = camera.CameraSubject
+
+	hum.WalkSpeed = 0
+
+	local camConn = nil
+	local cameraModel = nil
+
+	local camFolder = asset:WaitForChild("Effects"):WaitForChild("ImaginaryPurple")
+	cameraModel = camFolder:FindFirstChild("Camera"):Clone()
+	local cameraPart = cameraModel and cameraModel:FindFirstChild("Torso")
+
+	if cameraModel and cameraPart then
+		cameraModel:PivotTo(root.CFrame)
+		cameraModel.Parent = workspace
+
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CameraSubject = cameraPart
+		camera.FieldOfView = 70
+
+		camConn = RunService.RenderStepped:Connect(function()
+			if cameraPart and cameraPart.Parent then
+				camera.CFrame = cameraPart.CFrame
+			end
+		end)
+
+		local camAnimPlayer = PlayKeyframeSequence(cameraModel, asset:WaitForChild("Anims"):WaitForChild("ImaginaryCamera"), 1)
+		camAnimPlayer.Play()
+
+		task.delay(camAnimPlayer.Length + 0.5, function()
+			if camConn then camConn:Disconnect() end
+			if cameraModel then cameraModel:Destroy() end
+			camera.CameraType = originalCameraType
+			if originalCameraSubject then camera.CameraSubject = originalCameraSubject end
+			hum.CameraOffset = Vector3.new(0,0,0)
+		end)
+	end
+
+	local animPlayer = PlayKeyframeSequence(char, asset:WaitForChild("Anims"):WaitForChild("ImaginaryPurple"), 1)
+	animPlayer.Play()
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("ImaginaryPurple.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	task.wait(9)
+	local purpleArm = camFolder:FindFirstChild("PurpleArm")
+	if purpleArm then
+		purpleArm = purpleArm:Clone()
+		purpleArm.Anchored = false
+		purpleArm.CanCollide = false
+		purpleArm.Parent = workspace
+		local weld = purpleArm:FindFirstChildWhichIsA("ManualWeld") or purpleArm:FindFirstChildWhichIsA("Weld")
+		if weld then
+			weld.Part0 = rightArm
+			weld.Part1 = purpleArm
+		end
+	end
+
+	task.wait(3.5)
+
+	if purpleArm then purpleArm:Destroy() end
+
+	local purpleShoot = camFolder:FindFirstChild("PurpleShoot")
+	if purpleShoot then
+		local projectile = purpleShoot:Clone()
+		
+		projectile.Anchored = true
+		projectile.CanCollide = false
+		
+		for _, v in ipairs(projectile:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.Anchored = true
+				v.CanCollide = false
+			end
+		end
+
+		projectile.CFrame = root.CFrame * CFrame.new(0, 6, 0)
+		projectile.Parent = workspace
+
+		local direction = root.CFrame.LookVector
+		local currentCFrame = projectile.CFrame
+		local startTime = os.clock()
+		local duration = 15
+		local speed = 275
+
+		local moveConn
+		moveConn = RunService.Heartbeat:Connect(function()
+			local elapsed = os.clock() - startTime
+			if elapsed >= duration or not projectile.Parent then
+				if moveConn then moveConn:Disconnect() end
+				return
+			end
+
+			currentCFrame = currentCFrame + (direction * speed * 0.016)
+			projectile.CFrame = currentCFrame
+		end)
+
+		Debris:AddItem(projectile, duration)
+	end
+
+	animPlayer.Stop()
+	if originalAnimator then originalAnimator.Parent = hum end
+	hum.WalkSpeed = originalSpeed
+
+	if camConn then camConn:Disconnect() end
+	if cameraModel then cameraModel:Destroy() end
+	
+	camera.CameraType = originalCameraType
+	if originalCameraSubject then camera.CameraSubject = originalCameraSubject end
+	hum.CameraOffset = Vector3.new(0, 0, 0)
+end)
