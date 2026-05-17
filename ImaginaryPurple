@@ -190,7 +190,7 @@ tool.Activated:Connect(function()
 
 	local sound = Instance.new("Sound")
 	sound.SoundId = getcustomasset("ImaginaryPurple.mp3")
-	sound.Volume = 1
+	sound.Volume = 2
 	sound.Parent = workspace
 	sound:Play()
 
