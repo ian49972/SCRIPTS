@@ -8,13 +8,12 @@ local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
--- ==================== TOOL CREATION ====================
 local tool = Instance.new("Tool")
 tool.Name = "Ravage"
+tool.ToolTip = "ISN'T IT KILL KJ DAY?!"
 tool.RequiresHandle = false
 tool.Parent = player:WaitForChild("Backpack")
 
--- ==================== LOAD ASSET ====================
 local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
 asset.Parent = game.ReplicatedStorage
 
@@ -26,7 +25,6 @@ local RavageEnemyAnim = AnimsFolder:WaitForChild("RavageEnemy")
 local EffectsFolder = asset:WaitForChild("Effects")
 local RavageEffects = EffectsFolder:WaitForChild("Ravage")
 
--- ==================== KEYFRAME PLAYER ====================
 local EasingStyleMap = {
 	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
 	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
@@ -141,7 +139,6 @@ local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
 	}
 end
 
--- ==================== CLONE FUNCTION ====================
 local function CloneMe(char)
 	char.Archivable = true
 	local clone = char:Clone()
@@ -149,7 +146,6 @@ local function CloneMe(char)
 	return clone
 end
 
--- ==================== TOOL ACTIVATED ====================
 tool.Activated:Connect(function()
 	local originalSpeed = humanoid.WalkSpeed
 	
@@ -241,13 +237,11 @@ tool.Activated:Connect(function()
 				hitAnim.Play()
 				enemyAnim.Play()
 
-				-- VFX
 				task.delay(2, function() 
 					if not charClone or not charClone.Parent then return end
 
 					local vfxModel = RavageEffects:Clone()
 
-					-- Prepare all parts
 					for _, part in ipairs(vfxModel:GetDescendants()) do
 						if part:IsA("BasePart") then
 							part.Anchored = false
