@@ -11,14 +11,12 @@ local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
--- ==================== TOOL CREATION ====================
 local tool = Instance.new("Tool")
 tool.Name = "20 SERIES"
 tool.RequiresHandle = false
 tool.ToolTip = "I'm getting sick of this."
 tool.Parent = player:WaitForChild("Backpack")
 
--- ==================== LOAD ASSET ====================
 local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
 asset.Parent = game.ReplicatedStorage
 
@@ -31,7 +29,6 @@ local FineTemplate = EffectsFolder:FindFirstChild("Fine")
 local Fine2Template = EffectsFolder:FindFirstChild("Fine2")
 local KJTemplate = EffectsFolder:FindFirstChild("KJ")
 
--- ==================== KEYFRAME PLAYER ====================
 local EasingStyleMap = {
 	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
 	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
@@ -146,7 +143,6 @@ local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
 	}
 end
 
--- ==================== DIALOGUE SYSTEM ====================
 local function getColor(timeLength, points)
     local data1 = points[1]
     local allPoints = points[#points]
@@ -326,7 +322,6 @@ local function parseTextToData(text)
     return data
 end
 
--- ==================== TOOL ACTIVATED ====================
 tool.Activated:Connect(function()
 	local originalSpeed = humanoid.WalkSpeed
 	local isMoving = humanoid.MoveDirection.Magnitude > 0.1
@@ -340,7 +335,6 @@ tool.Activated:Connect(function()
 	local faceConn
 
 	if not isMoving then
-		-- NORMAL ULT
 		local ultAnim = PlayKeyframeSequence(character, KJULTKS, 1)
 		ultAnim.Play()
 
@@ -365,7 +359,6 @@ tool.Activated:Connect(function()
 			end
 		end
 
-		-- Emit particles
 		for _, vfx in activeVFX do
 			for _, att in ipairs(vfx:GetDescendants()) do
 				if att:IsA("Attachment") then
@@ -414,7 +407,6 @@ tool.Activated:Connect(function()
 		end)
 
 	else
-		-- KJALT VARIANT
 		local altAnim = PlayKeyframeSequence(character, KJALTKS, 1)
 		altAnim.Play()
 
@@ -467,9 +459,8 @@ tool.Activated:Connect(function()
 			end
 		end)
 
-		-- Straight line BodyVelocity (better on ground)
 		local bv = Instance.new("BodyVelocity")
-		bv.Name = "AwakeningVelocity"
+		bv.Name = "KJVelocity"
 		bv.MaxForce = Vector3.new(99999999, 0, 99999999)
 		bv.Velocity = Vector3.new(0, 0, 0)
 		bv.Parent = hrp
