@@ -1,0 +1,330 @@
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- ==================== TOOL CREATION ====================
+local tool = Instance.new("Tool")
+tool.Name = "Ravage"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+-- ==================== LOAD ASSET ====================
+local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local RavageAnim = AnimsFolder:WaitForChild("Ravage")
+local RavageHitAnim = AnimsFolder:WaitForChild("RavageHit")
+local RavageEnemyAnim = AnimsFolder:WaitForChild("RavageEnemy")
+
+local EffectsFolder = asset:WaitForChild("Effects")
+local RavageEffects = EffectsFolder:WaitForChild("Ravage")
+
+-- ==================== KEYFRAME PLAYER ====================
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then 
+		return { Length = 0, Stop = function() end, Play = function() end }
+	end
+
+	local jointData = {}
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+			local alpha = 0
+			if nextPose.time > lastPose.time then
+				alpha = (timePos - lastPose.time) / (nextPose.time - lastPose.time)
+			end
+			local easedAlpha = TweenService:GetValue(alpha, EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear, EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function()
+			isPlaying = false
+			if conn then conn:Disconnect() end
+		end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+-- ==================== CLONE FUNCTION ====================
+local function CloneMe(char)
+	char.Archivable = true
+	local clone = char:Clone()
+	char.Archivable = false
+	return clone
+end
+
+-- ==================== TOOL ACTIVATED ====================
+tool.Activated:Connect(function()
+	local originalSpeed = humanoid.WalkSpeed
+	
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+	
+	humanoid.WalkSpeed = 0
+
+	local targetHit = nil
+	local hitbox = nil
+	local hitboxConn = nil
+
+	local sound1 = Instance.new("Sound")
+	sound1.SoundId = "rbxassetid://132055559386874"
+	sound1.Volume = 1
+	sound1.Parent = workspace
+	sound1:Play()
+
+	local playerAnim = PlayKeyframeSequence(character, RavageAnim, 1)
+	playerAnim.Play()
+
+	task.delay(0.7, function()
+		if not hrp or not hrp.Parent then return end
+
+		hitbox = Instance.new("Part")
+		hitbox.Name = "RavageHitbox"
+		hitbox.Size = Vector3.new(6, 6, 5)
+		hitbox.Color = Color3.new(1, 0, 0)
+		hitbox.Transparency = 0.5
+		hitbox.CanCollide = false
+		hitbox.Anchored = true
+		hitbox.Parent = workspace
+
+		hitboxConn = RunService.Heartbeat:Connect(function()
+			if hitbox and hitbox.Parent and hrp and hrp.Parent then
+				hitbox.CFrame = hrp.CFrame * CFrame.new(0, 0, -4)
+			end
+		end)
+
+		task.delay(0.5, function()
+			if hitboxConn then hitboxConn:Disconnect() end
+			
+			if hitbox and hitbox.Parent then
+				local partsInBox = workspace:GetPartsInPart(hitbox)
+				for _, part in ipairs(partsInBox) do
+					local hitChar = part:FindFirstAncestorWhichIsA("Model")
+					if hitChar and hitChar:FindFirstChild("Humanoid") and hitChar ~= character and not targetHit then
+						local hitPlr = Players:GetPlayerFromCharacter(hitChar)
+						if hitPlr then
+							targetHit = hitChar
+							break
+						end
+					end
+				end
+				hitbox:Destroy()
+			end
+
+			if targetHit then
+				playerAnim.Stop()
+
+				local sound2 = Instance.new("Sound")
+				sound2.SoundId = "rbxassetid://139585399020258"
+				sound2.Volume = 1
+				sound2.Parent = workspace
+				sound2:Play()
+
+				local charClone = CloneMe(targetHit)
+				charClone.Parent = workspace
+
+				for _, part in ipairs(charClone:GetDescendants()) do
+					if part:IsA("BasePart") then 
+						part.CanCollide = false 
+						part.Anchored = false
+					end
+				end
+
+				local victimHrp = charClone:FindFirstChild("HumanoidRootPart")
+				if victimHrp then
+					victimHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -2.5) * CFrame.Angles(0, math.rad(180), 0)
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = hrp
+					weld.Part1 = victimHrp
+					weld.Parent = hrp
+				end
+
+				local hitAnim = PlayKeyframeSequence(character, RavageHitAnim, 1)
+				local enemyAnim = PlayKeyframeSequence(charClone, RavageEnemyAnim, 1)
+
+				hitAnim.Play()
+				enemyAnim.Play()
+
+				-- VFX
+				task.delay(2, function() 
+					if not charClone or not charClone.Parent then return end
+
+					local vfxModel = RavageEffects:Clone()
+
+					-- Prepare all parts
+					for _, part in ipairs(vfxModel:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Anchored = false
+							part.CanCollide = false
+						end
+					end
+
+					vfxModel.Parent = workspace
+
+					-- RavageBarrage
+					local barrage = vfxModel:FindFirstChild("RavageBarrage")
+					if barrage then
+						local weld = barrage:FindFirstChild("Weld")
+						if weld then
+							weld.Part0 = victimHrp
+							weld.Part1 = barrage
+						end
+					end
+
+					-- SpinBeam
+					local spinBeam = vfxModel:FindFirstChild("SpinBeam")
+					if spinBeam then
+						spinBeam.Parent = workspace
+						local weld1 = Instance.new("WeldConstraint")
+						weld1.Part0 = hrp
+						weld1.Part1 = spinBeam
+						weld1.Parent = spinBeam
+						task.delay(0.5, function()
+							if spinBeam and spinBeam.Parent then spinBeam:Destroy() end
+						end)
+					end
+
+					-- Left_Leg
+					local leftLeg = vfxModel:FindFirstChild("Left_Leg")
+					if leftLeg then
+						leftLeg.Parent = workspace
+						local leftLegPart = character:FindFirstChild("Left Leg")
+						if leftLegPart then
+							local weld2 = Instance.new("WeldConstraint")
+							weld2.Part0 = leftLegPart
+							weld2.Part1 = leftLeg
+							weld2.Parent = leftLeg
+							task.delay(1, function()
+								if leftLeg and leftLeg.Parent then leftLeg:Destroy() end
+							end)
+						end
+					end
+
+					task.delay(1.6, function()
+						if vfxModel and vfxModel.Parent then vfxModel:Destroy() end
+					end)
+				end)
+
+				task.delay(hitAnim.Length, function()
+					hitAnim.Stop()
+					enemyAnim.Stop()
+					humanoid.WalkSpeed = originalSpeed
+					
+					if not humanoid:FindFirstChild("Animator") then
+						Instance.new("Animator", humanoid)
+					end
+					
+					if charClone and charClone.Parent then
+						charClone:Destroy()
+					end
+				end)
+
+			else
+				task.delay(playerAnim.Length - 1.2, function()
+					playerAnim.Stop()
+					humanoid.WalkSpeed = originalSpeed
+					
+					if not humanoid:FindFirstChild("Animator") then
+						Instance.new("Animator", humanoid)
+					end
+				end)
+			end
+		end)
+	end)
+end)

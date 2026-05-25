@@ -1,0 +1,222 @@
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- ==================== TOOL CREATION ====================
+local tool = Instance.new("Tool")
+tool.Name = "KJ"
+tool.RequiresHandle = false
+tool.ToolTip = "KJ's First Ride"
+tool.Parent = player:WaitForChild("Backpack")
+
+-- ==================== LOAD ASSET ====================
+local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local SpawnKS = AnimsFolder:WaitForChild("Spawn")
+
+-- ==================== KEYFRAME PLAYER ====================
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then 
+		return { Length = 0, Stop = function() end, Play = function() end }
+	end
+
+	local jointData = {}
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+			local alpha = 0
+			if nextPose.time > lastPose.time then
+				alpha = (timePos - lastPose.time) / (nextPose.time - lastPose.time)
+			end
+			local easedAlpha = TweenService:GetValue(alpha, EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear, EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function()
+			isPlaying = false
+			if conn then conn:Disconnect() end
+		end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+-- ==================== TOOL ACTIVATED ====================
+tool.Activated:Connect(function()
+	local originalSpeed = humanoid.WalkSpeed
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+   tool:Destroy()
+
+	humanoid.WalkSpeed = 0
+
+	-- Spawn Sound
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("Spawn.mp3")
+	sound.Volume = 3
+	sound.Parent = workspace
+	sound:Play()
+
+	-- Load Phone Object
+	local Object = game:GetObjects("rbxassetid://18204477197")[1]
+	Object.Parent = workspace
+	Object:PivotTo(character:GetPivot())
+
+	local PhoneModel = Object:FindFirstChild("phone")
+
+	-- Play Spawn Animation
+	local spawnAnim = PlayKeyframeSequence(character, SpawnKS, 1)
+	spawnAnim.Play()
+
+	-- Phone Logic
+	local rightArm = character:FindFirstChild("Right Arm") or character:FindFirstChild("RightUpperArm")
+	if PhoneModel and rightArm then
+		if not PhoneModel.PrimaryPart then
+			local primary = PhoneModel:FindFirstChildWhichIsA("BasePart")
+			if primary then PhoneModel.PrimaryPart = primary end
+		end
+
+		for _, part in pairs(PhoneModel:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+				part.Anchored = false
+			end
+		end
+
+		PhoneModel.Parent = character
+		Object:Destroy()   -- ← Exactly where you wanted it
+
+		-- Weld phone to hand
+		local weld = Instance.new("Weld")
+		weld.Part0 = rightArm
+		weld.Part1 = PhoneModel.PrimaryPart
+		weld.C0 = CFrame.new(0, -0.7, 0)
+		weld.Parent = PhoneModel
+
+		task.delay(1.5, function()
+			if not PhoneModel or not PhoneModel.Parent then return end
+
+			-- Destroy weld so phone falls naturally
+			for _, obj in pairs(PhoneModel:GetDescendants()) do
+				if obj:IsA("Weld") or obj:IsA("WeldConstraint") or obj:IsA("Motor6D") then
+					obj:Destroy()
+				end
+			end
+
+			PhoneModel.Parent = workspace
+
+			-- Delete after 3 seconds
+			task.delay(7, function()
+				if PhoneModel and PhoneModel.Parent then
+					PhoneModel:Destroy()
+				end
+			end)
+		end)
+	end
+
+	-- Cleanup
+	task.delay(spawnAnim.Length, function()
+		humanoid.WalkSpeed = originalSpeed
+		spawnAnim.Stop()
+		if not humanoid:FindFirstChild("Animator") then
+			Instance.new("Animator", humanoid)
+		end
+	end)
+end)

@@ -1,0 +1,256 @@
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local tool = Instance.new("Tool")
+tool.Name = "Slap"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local KJWallPlayer = AnimsFolder:WaitForChild("KJWallPlayer")
+local KJWallEnemy = AnimsFolder:WaitForChild("KJWallEnemy")
+
+local EffectsFolder = asset:WaitForChild("Effects")
+local SlapFolder = EffectsFolder:WaitForChild("Slap")
+local SlapFrames = SlapFolder:WaitForChild("SlapFrames")
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then 
+		return { Length = 0, Stop = function() end, Play = function() end }
+	end
+
+	local jointData = {}
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+			local alpha = 0
+			if nextPose.time > lastPose.time then
+				alpha = (timePos - lastPose.time) / (nextPose.time - lastPose.time)
+			end
+			local easedAlpha = TweenService:GetValue(alpha, EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear, EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function()
+			isPlaying = false
+			if conn then conn:Disconnect() end
+		end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+local function CloneMe(char)
+	char.Archivable = true
+	local clone = char:Clone()
+	char.Archivable = false
+	return clone
+end
+
+local function GetNearestPlayer()
+	local nearest = nil
+	local shortestDistance = math.huge
+	
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+			if dist < shortestDistance then
+				shortestDistance = dist
+				nearest = plr
+			end
+		end
+	end
+	return nearest
+end
+
+tool.Activated:Connect(function()
+	local originalSpeed = humanoid.WalkSpeed
+	
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+	
+	humanoid.WalkSpeed = 0
+
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/SlapCam"))()
+
+	local targetPlayer = GetNearestPlayer()
+	if not targetPlayer or not targetPlayer.Character then
+		humanoid.WalkSpeed = originalSpeed
+		return
+	end
+
+	local targetChar = targetPlayer.Character
+
+	local charClone = CloneMe(targetChar)
+	charClone.Parent = workspace
+
+	for _, part in ipairs(charClone:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+		end
+	end
+
+	local victimHrp = charClone:FindFirstChild("HumanoidRootPart")
+	if victimHrp then
+		victimHrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(180), 0)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hrp
+		weld.Part1 = victimHrp
+		weld.Parent = hrp
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("SLAP.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	local playerAnim = PlayKeyframeSequence(character, KJWallPlayer, 1)
+	local enemyAnim = PlayKeyframeSequence(charClone, KJWallEnemy, 1)
+
+	playerAnim.Play()
+	enemyAnim.Play()
+
+	local fxGui = SlapFrames:Clone()
+	fxGui.Parent = player:WaitForChild("PlayerGui")
+	fxGui.Enabled = true
+
+	local kjWall = fxGui:FindFirstChild("KJWall", true)
+
+	task.delay(3, function()
+		if kjWall then
+			for i = 1, 73 do
+				local frame = kjWall:FindFirstChild(tostring(i))
+				if frame and frame:IsA("ImageLabel") then
+					frame.Visible = true
+					task.wait(0.03)
+					frame.Visible = false
+				end
+			end
+		end
+		
+		if fxGui then
+			fxGui.Enabled = false
+		end
+	end)
+
+	task.delay(enemyAnim.Length, function()
+		enemyAnim.Stop()
+		
+		if charClone and charClone.Parent then
+			charClone:Destroy()
+		end
+		
+		local camera = workspace.CurrentCamera
+		if camera then
+			camera.FieldOfView = 70
+		end
+	end)
+
+	task.delay(playerAnim.Length, function()
+		humanoid.WalkSpeed = originalSpeed
+		playerAnim.Stop()
+		
+		if not humanoid:FindFirstChild("Animator") then
+			Instance.new("Animator", humanoid)
+		end
+	end)
+end)

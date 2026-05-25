@@ -1,0 +1,494 @@
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local CollectionService = game:GetService("CollectionService")
+local TextService = game:GetService("TextService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- ==================== TOOL CREATION ====================
+local tool = Instance.new("Tool")
+tool.Name = "20 SERIES"
+tool.RequiresHandle = false
+tool.ToolTip = "I'm getting sick of this."
+tool.Parent = player:WaitForChild("Backpack")
+
+-- ==================== LOAD ASSET ====================
+local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local KJULTKS = AnimsFolder:WaitForChild("KJULT")
+local KJALTKS = AnimsFolder:WaitForChild("KJALT")
+
+local EffectsFolder = asset:WaitForChild("Effects"):WaitForChild("ULT")
+local FineTemplate = EffectsFolder:FindFirstChild("Fine")
+local Fine2Template = EffectsFolder:FindFirstChild("Fine2")
+local KJTemplate = EffectsFolder:FindFirstChild("KJ")
+
+-- ==================== KEYFRAME PLAYER ====================
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a,b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then 
+		return { Length = 0, Stop = function() end, Play = function() end }
+	end
+
+	local jointData = {}
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then jointData[pose.Name] = {} end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+	local conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+			local alpha = 0
+			if nextPose.time > lastPose.time then
+				alpha = (timePos - lastPose.time) / (nextPose.time - lastPose.time)
+			end
+			local easedAlpha = TweenService:GetValue(alpha, EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear, EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut)
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function()
+			isPlaying = false
+			if conn then conn:Disconnect() end
+		end,
+		Play = function() startTime = os.clock() end
+	}
+end
+
+-- ==================== DIALOGUE SYSTEM ====================
+local function getColor(timeLength, points)
+    local data1 = points[1]
+    local allPoints = points[#points]
+    local newPoint = 0.5
+    local value = data1.Value
+    for i = 1, #points - 1 do
+        if points[i].Time <= timeLength and timeLength <= points[i + 1].Time then
+            data1 = points[i]
+            allPoints = points[i + 1]
+            newPoint = (timeLength - data1.Time) / (allPoints.Time - data1.Time)
+            return (data1.Value:lerp(allPoints.Value, newPoint))
+        end
+    end
+    return value
+end
+
+local function EndDialogue(gui)
+    for _, v in gui:GetChildren() do
+        if v.Name == "letter" then
+            v:SetAttribute("Ending", true)
+            TweenService:Create(v, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Position = v.Position + UDim2.new(0, 0, 0, 50),
+                TextTransparency = 1,
+                TextStrokeTransparency = 1
+            }):Play()
+            game.Debris:AddItem(v, 0.5)
+        end
+    end
+end
+
+local function CreateDialogue(data, model)
+    model = model or game:GetObjects("rbxassetid://74714833540240")[1]
+    local DialogueUI = player.PlayerGui:FindFirstChild(model.Name .. "CUSTOM_DIALOGUE") or model:WaitForChild("CUSTOM_DIALOGUE"):Clone()
+    local text = ""
+    local posY = 0
+    local posX = 0
+    local Time = 0
+    if not DialogueUI:GetAttribute("Created") then
+        local Template = DialogueUI:WaitForChild("Holder"):WaitForChild("Template")
+        local Holder = DialogueUI.Holder
+        Holder.Position = Holder.Position - UDim2.new(0, 0, 0, 100 * #CollectionService:GetTagged("CUSTOM_DIALOGUE"))
+        local imageLabel = Template:WaitForChild("ImageLabel")
+        imageLabel.Position = imageLabel.Position - UDim2.new(0, 0, 0, 100)
+        imageLabel.ImageTransparency = 1
+        imageLabel.Image = "rbxassetid://107469728452026"
+        local nameLabel = Template:WaitForChild("Name")
+        nameLabel.Position = nameLabel.Position - UDim2.new(0, 0, 0, 100)
+        nameLabel.TextTransparency = 1
+        nameLabel.TextStrokeTransparency = 1
+        TweenService:Create(imageLabel, TweenInfo.new(1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = imageLabel.Position + UDim2.new(0, 0, 0, 100),
+            ImageTransparency = 0
+        }):Play()
+        TweenService:Create(nameLabel, TweenInfo.new(1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = nameLabel.Position + UDim2.new(0, 0, 0, 100),
+            TextTransparency = 0,
+            TextStrokeTransparency = 0
+        }):Play()
+        task.spawn(function()
+            DialogueUI:SetAttribute("Created", os.clock())
+            repeat task.wait() until os.clock() - DialogueUI:GetAttribute("Created") > 5 or not DialogueUI.Parent
+            DialogueUI.Name = "deleting"
+            EndDialogue(DialogueUI.Holder.Template)
+            TweenService:Create(imageLabel, TweenInfo.new(1, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+                Position = imageLabel.Position - UDim2.new(0, 0, 0, 100),
+                ImageTransparency = 1
+            }):Play()
+            TweenService:Create(nameLabel, TweenInfo.new(1, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+                Position = nameLabel.Position - UDim2.new(0, 0, 0, 100),
+                TextTransparency = 1,
+                TextStrokeTransparency = 1
+            }):Play()
+            task.delay(1, function() DialogueUI:Destroy() end)
+        end)
+    else
+        DialogueUI:SetAttribute("Created", os.clock())
+    end
+    DialogueUI.Parent = player.PlayerGui
+    DialogueUI.Enabled = true
+    DialogueUI.Name = model.Name .. "CUSTOM_DIALOGUE"
+    CollectionService:AddTag(DialogueUI, "CUSTOM_DIALOGUE")
+    DialogueUI:WaitForChild("Holder"):WaitForChild("Template"):WaitForChild("Name").Text = player.Name
+    for _, v in data do
+        text = text .. v.Text
+    end
+    local isHigh = false
+    for _, v in data do
+        if v.HigherUp then
+            isHigh = true
+            TweenService:Create(DialogueUI.Holder, TweenInfo.new(0.2), {Position = UDim2.new(0.5, 0, 0.965, 0)}):Play()
+        end
+    end
+    if not isHigh and DialogueUI.Holder.Position ~= UDim2.new(0.5, 0, 1, 0) then
+        TweenService:Create(DialogueUI.Holder, TweenInfo.new(1), {Position = UDim2.new(0.5, 0, 1, 0)}):Play()
+    end
+    EndDialogue(DialogueUI.Holder.Template)
+    for _, v in data do
+        local split = string.split(v.Text, "")
+        local font = v.Bold and Enum.Font.SourceSansBold or v.Italic and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
+        for _, b in split do
+            posY = posY + TextService:GetTextSize(b, 25, font, Vector2.new(100, 100)).X
+        end
+    end
+    posX = 0
+    for _, v in data do
+        local split = string.split(v.Text, "")
+        local font = v.Bold and Enum.Font.SourceSansBold or v.Italic and Enum.Font.SourceSansItalic or Enum.Font.SourceSans
+        for _, b in split do
+            local TextService_TextLabel = TextService:GetTextSize(b, 25, font, Vector2.new(100, 100))
+            local TextLabel = Instance.new("TextLabel")
+            local newPosY = posY
+            local newPosX = posX
+            TextLabel.AnchorPoint = Vector2.new(0, 0.5)
+            TextLabel.Position = UDim2.new(0.5, newPosX - newPosY / 2, 0.5, 10)
+            TextLabel.Size = UDim2.new(0, TextService_TextLabel.X, 0, TextService_TextLabel.Y)
+            TextLabel.Text = b
+            TextLabel.Name = "letter"
+            TextLabel.Font = font
+            TextLabel.TextSize = 25
+            TextLabel.Parent = DialogueUI.Holder.Template
+            TextLabel.BackgroundTransparency = 1
+            TextLabel.TextStrokeColor3 = v.TextStrokeColor or Color3.fromRGB(0, 0, 0)
+            TextLabel.TextStrokeTransparency = 1
+            TextLabel.TextTransparency = 1
+            task.delay(Time, function()
+                local osClock = os.clock()
+                repeat
+                    local keyPointTime = math.min((os.clock() - osClock) / 0.35, 1)
+                    local shakeLifeTime = math.min((os.clock() - osClock) / (v.Shake.Lifetime or 1), 1)
+                    local currentShake = not v.Shake.Enabled and UDim2.new(0, 0, 0, 0) or UDim2.new(0, math.random(- (v.Shake.Intensity or 1), v.Shake.Intensity or 1) * (1 - shakeLifeTime), 0, math.random(- (v.Shake.Intensity or 1), v.Shake.Intensity or 1) * (1 - shakeLifeTime))
+                    local textSettings = 1 - (1 + 2.70158 * math.pow(keyPointTime - 1, 3) + 1.70158 * math.pow(keyPointTime - 1, 2))
+                    TextLabel.TextStrokeTransparency = (1 - keyPointTime) ^ 10
+                    TextLabel.TextTransparency = textSettings
+                    TextLabel.TextSize = 25 + 25 * textSettings
+                    TextLabel.TextColor3 = getColor(keyPointTime, v.Color.Keypoints)
+                    TextLabel.Position = UDim2.new(0.5, newPosX - newPosY / 2, 0.5, 0) + currentShake
+                    task.wait()
+                until os.clock() - osClock > math.max(0.35, v.Shake.Lifetime or 1) or not TextLabel or not TextLabel:IsDescendantOf(DialogueUI) or TextLabel:GetAttribute("Ending")
+                if TextLabel then
+                    TextLabel.TextStrokeTransparency = 0
+                    TextLabel.TextTransparency = 0
+                    TextLabel.TextSize = 25
+                    TextLabel.TextColor3 = v.Color.Keypoints[#v.Color.Keypoints].Value
+                    TextLabel.Position = UDim2.new(0.5, newPosX - newPosY / 2, 0.5, 0)
+                end
+            end)
+            Time = Time + (v.TypeSpeed or 0.05)
+            posX = posX + TextService_TextLabel.X
+        end
+    end
+end
+
+local function parseTextToData(text)
+    local words = string.split(text, " ")
+    local data = {}
+    for _, word in ipairs(words) do
+        local cleanWord = word:gsub("%p", "")
+        local isCaps = (word == string.upper(cleanWord))
+        local entry = {
+            Text = word .. " ",
+            TypeSpeed = 0.05,
+            Bold = isCaps,
+            Italic = false,
+            TextStrokeColor = Color3.fromRGB(0, 0, 0),
+            Color = {Keypoints = {
+                ColorSequenceKeypoint.new(0, isCaps and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 255)),
+                ColorSequenceKeypoint.new(1, isCaps and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 255))
+            }},
+            Shake = {Enabled = isCaps, Intensity = 2, Lifetime = 0.5},
+            HigherUp = isCaps
+        }
+        table.insert(data, entry)
+    end
+    if #data > 0 then
+        data[#data].Text = data[#data].Text:sub(1, -2)
+    end
+    return data
+end
+
+-- ==================== TOOL ACTIVATED ====================
+tool.Activated:Connect(function()
+	local originalSpeed = humanoid.WalkSpeed
+	local isMoving = humanoid.MoveDirection.Magnitude > 0.1
+
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+	humanoid.WalkSpeed = 0
+
+	local activeVFX = {}
+	local faceConn
+
+	if not isMoving then
+		-- NORMAL ULT
+		local ultAnim = PlayKeyframeSequence(character, KJULTKS, 1)
+		ultAnim.Play()
+
+		local sound = Instance.new("Sound")
+		sound.SoundId = getcustomasset("ULT.mp3")
+		sound.Volume = 1
+		sound.Parent = workspace
+		sound:Play()
+
+		for _, template in {FineTemplate, Fine2Template, KJTemplate} do
+			if template then
+				local clone = template:Clone()
+				clone.Parent = workspace
+				clone:PivotTo(hrp.CFrame)
+				for _, weld in ipairs(clone:GetDescendants()) do
+					if weld:IsA("Weld") or weld:IsA("ManualWeld") then
+						weld.Part0 = hrp
+					end
+				end
+				if clone:IsA("BasePart") then clone.Anchored = false end
+				table.insert(activeVFX, clone)
+			end
+		end
+
+		-- Emit particles
+		for _, vfx in activeVFX do
+			for _, att in ipairs(vfx:GetDescendants()) do
+				if att:IsA("Attachment") then
+					for _, emitter in ipairs(att:GetChildren()) do
+						if emitter:IsA("ParticleEmitter") then
+							emitter:Emit(1)
+						end
+					end
+				end
+			end
+		end
+
+		local groundcrok = FineTemplate and FineTemplate:FindFirstChild("EmitBatch2", true) and FineTemplate.EmitBatch2:FindFirstChild("groundcrok")
+		if groundcrok and groundcrok:IsA("ParticleEmitter") then
+			groundcrok:Emit(1)
+		end
+
+		task.delay(2.5, function() CreateDialogue(parseTextToData("Fine.")) end)
+		task.delay(4, function() CreateDialogue(parseTextToData("Come as close as you like.")) end)
+		task.delay(6.3, function() CreateDialogue(parseTextToData("However...")) end)
+		task.delay(7.6, function() CreateDialogue(parseTextToData("This is the last time!")) end)
+
+		task.delay(8, function()
+			for _, vfx in ipairs(activeVFX) do
+				if vfx and vfx.Parent then
+					for _, emitter in ipairs(vfx:GetDescendants()) do
+						if emitter:IsA("ParticleEmitter") then emitter.Enabled = false end
+					end
+					local batch2 = vfx:FindFirstChild("EmitBatch2", true)
+					if batch2 then
+						for _, p in ipairs(batch2:GetChildren()) do
+							if p:IsA("ParticleEmitter") and p.Name ~= "groundcrok" then
+								p:Emit(1)
+							end
+						end
+					end
+				end
+			end
+		end)
+
+		task.delay(ultAnim.Length, function()
+			humanoid.WalkSpeed = originalSpeed
+			ultAnim.Stop()
+			for _, v in activeVFX do if v and v.Parent then v:Destroy() end end
+			if not humanoid:FindFirstChild("Animator") then Instance.new("Animator", humanoid) end
+		end)
+
+	else
+		-- KJALT VARIANT
+		local altAnim = PlayKeyframeSequence(character, KJALTKS, 1)
+		altAnim.Play()
+
+		local sound = Instance.new("Sound")
+		sound.SoundId = getcustomasset("ULT2.mp3")
+		sound.Volume = 1
+		sound.Parent = workspace
+		sound:Play()
+
+		CreateDialogue(parseTextToData("I'm getting sick of this."))
+
+		faceConn = RunService.Heartbeat:Connect(function()
+			if not hrp then return end
+			local camera = workspace.CurrentCamera
+			local lookDir = camera.CFrame.LookVector
+			local flatLook = Vector3.new(lookDir.X, 0, lookDir.Z).Unit
+			if flatLook.Magnitude > 0.1 then
+				hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + flatLook)
+			end
+		end)
+
+		local kjClone = KJTemplate and KJTemplate:Clone()
+		if kjClone then
+			kjClone.Parent = workspace
+			kjClone:PivotTo(hrp.CFrame)
+			for _, weld in ipairs(kjClone:GetDescendants()) do
+				if weld:IsA("Weld") or weld:IsA("ManualWeld") then
+					weld.Part0 = hrp
+				end
+			end
+			if kjClone:IsA("BasePart") then kjClone.Anchored = false end
+			table.insert(activeVFX, kjClone)
+		end
+
+		task.delay(2, function()
+			if kjClone then
+				for _, att in ipairs(kjClone:GetDescendants()) do
+					if att:IsA("Attachment") then
+						for _, emitter in ipairs(att:GetChildren()) do
+							if emitter:IsA("ParticleEmitter") then
+								emitter:Emit(1)
+							end
+						end
+					end
+				end
+			end
+			local groundcrok = FineTemplate and FineTemplate:FindFirstChild("EmitBatch2", true) and FineTemplate.EmitBatch2:FindFirstChild("groundcrok")
+			if groundcrok and groundcrok:IsA("ParticleEmitter") then
+				groundcrok:Emit(1)
+			end
+		end)
+
+		-- Straight line BodyVelocity (better on ground)
+		local bv = Instance.new("BodyVelocity")
+		bv.Name = "AwakeningVelocity"
+		bv.MaxForce = Vector3.new(99999999, 0, 99999999)
+		bv.Velocity = Vector3.new(0, 0, 0)
+		bv.Parent = hrp
+
+		local chargeConn = RunService.Heartbeat:Connect(function()
+			if hrp then
+				bv.Velocity = hrp.CFrame.LookVector * 10   -- Balanced speed
+			end
+		end)
+
+		task.delay(1.9, function()
+			if bv and bv.Parent then bv:Destroy() end
+			if chargeConn then chargeConn:Disconnect() end
+			if faceConn then faceConn:Disconnect() end
+			humanoid.WalkSpeed = originalSpeed
+          task.wait(1)
+			altAnim.Stop()
+			for _, v in activeVFX do if v and v.Parent then v:Destroy() end end
+			if not humanoid:FindFirstChild("Animator") then Instance.new("Animator", humanoid) end
+		end)
+	end
+end)
