@@ -1,4 +1,4 @@
--- 20-20-20 Dropkick Tool (LocalScript)
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -10,7 +10,6 @@ local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
--- ==================== CONNECTION CLEANUP ====================
 local connections = {}
 
 local function Connect(sig, fn)
@@ -35,13 +34,11 @@ end)
 
 player.CharacterRemoving:Connect(Cleanup)
 
--- ==================== TOOL CREATION ====================
 local tool = Instance.new("Tool")
 tool.Name = "20-20-20 Dropkick"
 tool.RequiresHandle = false
 tool.Parent = player:WaitForChild("Backpack")
 
--- ==================== LOAD ASSET ====================
 local asset = game:GetObjects(getcustomasset("KJ.rbxmx"))[1]
 asset.Parent = game.ReplicatedStorage
 
@@ -55,19 +52,16 @@ local BeamScreenTemplate = EffectsFolder:WaitForChild("BeamScreen")
 local BigDashLineTemplate = EffectsFolder:FindFirstChild("BigDashLine")
 local DropkickFramesGUI = EffectsFolder:FindFirstChild("DropkickFrames")
 
--- ==================== PERSISTENT FRAMES GUI (REUSED) ====================
 local PersistentDropkickGui = nil
 if DropkickFramesGUI then
 	PersistentDropkickGui = DropkickFramesGUI:Clone()
 	PersistentDropkickGui.Parent = player:WaitForChild("PlayerGui")
-	PersistentDropkickGui.Enabled = false  -- Hidden by default
+	PersistentDropkickGui.Enabled = false
 end
 
--- ==================== VFX REFERENCES ====================
 local SpeedVFX = EffectsFolder:FindFirstChild("SpeedVFX")
 local SpeedVFX2 = EffectsFolder:FindFirstChild("SpeedVFX2")
 
--- ==================== KEYFRAME PLAYER ====================
 local EasingStyleMap = {
 	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
 	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
@@ -204,7 +198,6 @@ local function CloneCharacter(char)
 	return clone
 end
 
--- ==================== PERFORM DROPKICK ====================
 local function PerformDropkick(victimChar, originalSpeed, vfxList)
 	if not character or not character.Parent then return end
 	
@@ -241,7 +234,6 @@ local function PerformDropkick(victimChar, originalSpeed, vfxList)
 	playerAnim.Play()
 	enemyAnim.Play()
 
-	-- ==================== BigDashLine (at 5s) ====================
 	local bigDash = nil
 	if BigDashLineTemplate then
 		task.delay(5, function()
@@ -258,10 +250,8 @@ local function PerformDropkick(victimChar, originalSpeed, vfxList)
 		end)
 	end
 
-	-- ==================== DropkickFrames GUI (at 9.8s) ====================
 	if PersistentDropkickGui then
-		task.delay(9.8, function()
-			-- Reset all frames to hidden
+		task.delay(10, function()
 			local frames = {}
 			for i = 1, 16 do
 				local frame = PersistentDropkickGui:FindFirstChild("Frame" .. i)
@@ -280,23 +270,20 @@ local function PerformDropkick(victimChar, originalSpeed, vfxList)
 				return 
 			end
 			
-			-- Sequential playback
 			for i, frame in ipairs(frames) do
 				frame.Visible = true
 				task.wait(0.15)
-				if i < #frames then  -- Only hide if it's NOT the last frame
+				if i < #frames then
 					frame.Visible = false
 				end
 			end
 			
-			-- Keep the last frame visible and hide GUI after 5 seconds
 			task.delay(3, function()
 				PersistentDropkickGui.Enabled = false
 			end)
 		end)
 	end
 
-	-- ==================== BeamScreen (at 9s) ====================
 	task.delay(9, function()
 		if not victimClone or not victimClone.Parent then return end
 			
@@ -316,21 +303,18 @@ local function PerformDropkick(victimChar, originalSpeed, vfxList)
 		Debris:AddItem(beamClone, 7)
 	end)
 
-	-- Clean VFX
 	if vfxList then
 		for _, vfx in ipairs(vfxList) do
 			if vfx and vfx.Parent then vfx:Destroy() end
 		end
 	end
 
-	-- Clone deletes when enemy animation ends
 	task.delay(enemyAnim.Length, function()
 		if victimClone and victimClone.Parent then
 			victimClone:Destroy()
 		end
 	end)
 
-	-- Player cleanup when player animation ends
 	task.delay(playerAnim.Length, function()
 		if hrp then hrp.Anchored = false end
 		if humanoid then humanoid.WalkSpeed = originalSpeed end
@@ -344,7 +328,6 @@ local function PerformDropkick(victimChar, originalSpeed, vfxList)
 	end)
 end
 
--- ==================== TOOL ACTIVATED ====================
 tool.Activated:Connect(function()
 	Cleanup()
 
