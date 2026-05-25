@@ -305,7 +305,6 @@ if animSaves then
 end
 animModel:Destroy()
 
--- ====================== KEYFRAME PLAYER ======================
 local EasingStyleMap = {
 	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
 	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
@@ -517,7 +516,6 @@ tool.Activated:Connect(function()
 
  humanoid.WalkSpeed = 0
     
-    -- Early VFX
     spawn(function()
         
         local fiveSeasonsFX = resourcesFolder:FindFirstChild("FiveSeasonsFX")
@@ -699,7 +697,6 @@ task.delay(8, function()
 startupStuff.Stop()
 end)
 
-    -- Heavy VFX + Impact Frames + FIXED FistsModelMirrored
     spawn(function()
         task.wait(11.5)
         local fxUi = PlayerGui:FindFirstChild("FXUi")
@@ -730,7 +727,6 @@ end)
                     fistsClone = fistsModel:Clone()
                     fistsClone.Parent = Workspace
                     
-                    -- Remove Black meshes
                     local fistsFolder = fistsClone:FindFirstChild("Fists")
                     if fistsFolder then
                         for _, mesh in ipairs(fistsFolder:GetDescendants()) do
@@ -742,11 +738,9 @@ end)
                     
                     local primary = fistsClone:FindFirstChild("Primary")
                     if primary and primary:IsA("BasePart") then
-                        -- Teleport ON TOP of player
                         local topCFrame = rootPart.CFrame * CFrame.new(150, 400, 0)
                         fistsClone:PivotTo(topCFrame)
                         
-                        -- Slow descent
                         local startCF = topCFrame
                         local goalCF = startCF * CFrame.new(0, -30, 0)
                         
