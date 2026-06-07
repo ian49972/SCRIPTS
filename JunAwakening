@@ -1,0 +1,413 @@
+local player = game.Players.LocalPlayer
+local workspace = game.Workspace
+local TS = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local Object = game:GetObjects(getcustomasset("Jun.rbxmx"))[1]
+Object.Parent = workspace
+
+local EasingStyleMap = {
+	[Enum.PoseEasingStyle.Linear]   = Enum.EasingStyle.Linear,
+	[Enum.PoseEasingStyle.Bounce]   = Enum.EasingStyle.Bounce,
+	[Enum.PoseEasingStyle.Cubic]    = Enum.EasingStyle.Cubic,
+	[Enum.PoseEasingStyle.Elastic]  = Enum.EasingStyle.Elastic,
+	[Enum.PoseEasingStyle.Constant] = Enum.EasingStyle.Linear,
+}
+
+local EasingDirectionMap = {
+	[Enum.PoseEasingDirection.In]    = Enum.EasingDirection.In,
+	[Enum.PoseEasingDirection.Out]   = Enum.EasingDirection.Out,
+	[Enum.PoseEasingDirection.InOut] = Enum.EasingDirection.InOut,
+}
+
+local function PlayKeyframeSequence(Model, KeyframeSequence, SpeedMult)
+	SpeedMult = SpeedMult or 1
+
+	local keyframes = {}
+	for _, kf in ipairs(KeyframeSequence:GetKeyframes()) do
+		table.insert(keyframes, {Time = kf.Time, KF = kf})
+	end
+	table.sort(keyframes, function(a, b) return a.Time < b.Time end)
+
+	if #keyframes == 0 then return end
+
+	local jointData = {}
+	local motorMap = {}
+	local boneMap = {}
+
+	local function ResolveJoint(pose)
+		local name = pose.Name
+		if motorMap[name] then return motorMap[name], "Motor6D" end
+		if boneMap[name] then return boneMap[name], "Bone" end
+
+		for _, v in ipairs(Model:GetDescendants()) do
+			if v:IsA("Motor6D") and v.Part1 and v.Part1.Name == name then
+				motorMap[name] = v
+				return v, "Motor6D"
+			elseif v:IsA("Bone") and v.Name == name then
+				boneMap[name] = v
+				return v, "Bone"
+			end
+		end
+		return nil, nil
+	end
+
+	for _, entry in ipairs(keyframes) do
+		for _, pose in ipairs(entry.KF:GetDescendants()) do
+			if pose:IsA("Pose") and pose.Weight > 0 then
+				local joint, jtype = ResolveJoint(pose)
+				if joint then
+					if not jointData[pose.Name] then
+						jointData[pose.Name] = {}
+					end
+					table.insert(jointData[pose.Name], {
+						time = entry.Time,
+						cframe = pose.CFrame,
+						style = pose.EasingStyle,
+						dir = pose.EasingDirection,
+						joint = joint,
+						jtype = jtype
+					})
+				end
+			end
+		end
+	end
+
+	local totalLength = keyframes[#keyframes].Time / SpeedMult
+	local isPlaying = true
+	local startTime = os.clock()
+
+	local conn
+	conn = RunService.Heartbeat:Connect(function()
+		if not isPlaying or not Model or not Model.Parent then
+			conn:Disconnect()
+			return
+		end
+
+		local elapsed = (os.clock() - startTime) * SpeedMult
+		local timePos = elapsed % totalLength
+
+		for jointName, poses in pairs(jointData) do
+			if #poses < 1 then continue end
+
+			local lastPose = poses[1]
+			local nextPose = poses[1]
+
+			for i = 1, #poses - 1 do
+				if timePos >= poses[i].time and timePos < poses[i+1].time then
+					lastPose = poses[i]
+					nextPose = poses[i+1]
+					break
+				end
+			end
+
+			if timePos >= poses[#poses].time then
+				lastPose = poses[#poses]
+				nextPose = poses[#poses]
+			end
+
+			local alpha = 0
+			if nextPose.time > lastPose.time then
+				alpha = (timePos - lastPose.time) / (nextPose.time - lastPose.time)
+			end
+
+			local easedAlpha = TS:GetValue(
+				alpha,
+				EasingStyleMap[nextPose.style] or Enum.EasingStyle.Linear,
+				EasingDirectionMap[nextPose.dir] or Enum.EasingDirection.InOut
+			)
+
+			local finalCF = lastPose.cframe:Lerp(nextPose.cframe, easedAlpha)
+
+			if lastPose.jtype == "Motor6D" then
+				lastPose.joint.Transform = finalCF
+			else
+				lastPose.joint.Transform = finalCF
+			end
+		end
+	end)
+
+	return {
+		Length = totalLength,
+		Stop = function()
+			isPlaying = false
+			if conn then conn:Disconnect() end
+		end,
+		Play = function() 
+			startTime = os.clock() 
+		end
+	}
+end
+
+local animFolder = Object:FindFirstChild("Anims")
+if not animFolder then
+	warn("Anims folder not found")
+	return
+end
+
+local awakeningSeq = animFolder:FindFirstChild("Awakening")
+if not awakeningSeq then
+	warn("Awakening animation not found")
+	return
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "Awakening"
+tool.RequiresHandle = false
+tool.Parent = player.Backpack
+
+tool.Activated:Connect(function()
+	local char = player.Character
+	if not char then return end
+
+	tool:Destroy()
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	
+	local humanoid = char:FindFirstChild("Humanoid")
+	if not humanoid then return end
+
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then
+		animator:Destroy()
+	end
+
+	humanoid.WalkSpeed = 0
+
+	local anim = PlayKeyframeSequence(char, awakeningSeq, 1)
+	anim.Play()
+
+	task.wait(0.5)
+
+	local voice = Instance.new("Sound")
+	voice.SoundId = getcustomasset("JunVoice.mp3")
+	voice.Volume = 1
+	voice.Parent = hrp
+	voice:Play()
+
+	voice.Ended:Connect(function()
+		local theme = Instance.new("Sound")
+		theme.SoundId = getcustomasset("JunTheme.mp3")
+		theme.Volume = 2
+		theme.Parent = hrp
+		theme.TimePosition = 13
+		theme:Play()
+	end)
+
+	local camera = workspace.CurrentCamera
+
+	local followConn
+	local function startFollow()
+		if followConn then followConn:Disconnect() end
+		followConn = RunService.Heartbeat:Connect(function()
+			if not hrp or not hrp.Parent then return end
+			local camLook = camera.CFrame.LookVector
+			local flatLook = Vector3.new(camLook.X, 0, camLook.Z)
+			if flatLook.Magnitude > 0.1 then
+				flatLook = flatLook.Unit
+				hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + flatLook)
+			end
+		end)
+	end
+
+	local function stopFollow()
+		if followConn then
+			followConn:Disconnect()
+			followConn = nil
+		end
+	end
+
+	startFollow()
+
+	local bv1 = Instance.new("BodyVelocity")
+	bv1.MaxForce = Vector3.new(40000, 0, 40000)
+	bv1.Velocity = hrp.CFrame.LookVector * 16
+	bv1.Parent = hrp
+
+	local bv1Update = RunService.Heartbeat:Connect(function()
+		if bv1 and bv1.Parent then
+			bv1.Velocity = hrp.CFrame.LookVector * 16
+		end
+	end)
+
+	task.delay(3, function()
+		if bv1 then bv1:Destroy() end
+		if bv1Update then bv1Update:Disconnect() end
+		stopFollow()
+
+		local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local tween = TS:Create(humanoid, tweenInfo, {HipHeight = 50})
+		tween:Play()
+	end)
+
+	task.delay(6.5, function()
+		local lockedLook = hrp.CFrame.LookVector
+		lockedLook = Vector3.new(lockedLook.X, 0, lockedLook.Z).Unit
+
+		hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lockedLook)
+
+		local bv2 = Instance.new("BodyVelocity")
+		bv2.MaxForce = Vector3.new(40000, 0, 40000)
+		bv2.Velocity = lockedLook * 100
+		bv2.Parent = hrp
+
+		local tweenInfo2 = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		local tween2 = TS:Create(humanoid, tweenInfo2, {HipHeight = 0})
+		tween2:Play()
+
+		local lockConn
+		lockConn = RunService.Heartbeat:Connect(function()
+			if not hrp or not hrp.Parent or not humanoid then
+				if lockConn then lockConn:Disconnect() end
+				return
+			end
+
+			hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lockedLook)
+
+			if bv2 and bv2.Parent then
+				bv2.Velocity = lockedLook * 100
+			end
+
+			if humanoid.HipHeight <= 0.5 then
+				if bv2 then bv2:Destroy() end
+				if lockConn then lockConn:Disconnect() end
+
+				task.wait(0.12)
+
+				local craterCenter = hrp.Position - Vector3.new(0, 2.8, 0)
+
+				local groundMaterial = Enum.Material.Rock
+				local groundColor = BrickColor.new("Dark stone grey")
+
+				local rayParams = RaycastParams.new()
+				rayParams.FilterType = Enum.RaycastFilterType.Exclude
+				rayParams.FilterDescendantsInstances = {char}
+
+				local rayResult = workspace:Raycast(craterCenter + Vector3.new(0, 20, 0), Vector3.new(0, -50, 0), rayParams)
+				if rayResult and rayResult.Instance then
+					groundMaterial = rayResult.Instance.Material
+					groundColor = rayResult.Instance.BrickColor
+				else
+					local closestDist = math.huge
+					local closestPart = nil
+					for _, part in ipairs(workspace:GetDescendants()) do
+						if part:IsA("BasePart") and part ~= hrp and part.Transparency < 0.95 then
+							local dist = (part.Position - craterCenter).Magnitude
+							if dist < closestDist then
+								closestDist = dist
+								closestPart = part
+							end
+						end
+					end
+					if closestPart then
+						groundMaterial = closestPart.Material
+						groundColor = closestPart.BrickColor
+					end
+				end
+
+				for i = 1, 24 do
+					local angle = (i / 24) * math.pi * 2
+					local radius = math.random(80, 105) / 10
+					local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+
+					local rock = Instance.new("Part")
+					rock.Size = Vector3.new(math.random(20, 35)/10, math.random(12, 26)/10, math.random(20, 35)/10)
+					rock.Material = groundMaterial
+					rock.BrickColor = groundColor
+					rock.Anchored = true
+					rock.CanCollide = false
+					rock.CFrame = CFrame.new(craterCenter + offset + Vector3.new(0, math.random(2, 9)/10, 0))
+								  * CFrame.Angles(math.rad(math.random(-28, 28)), math.rad(math.random(0, 360)), math.rad(math.random(-28, 28)))
+					rock.Parent = workspace
+
+					task.delay(5.5, function()
+						if rock and rock.Parent then
+							local bury = TS:Create(rock, TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+								CFrame = rock.CFrame * CFrame.new(0, -4, 0)
+							})
+							bury:Play()
+							bury.Completed:Connect(function()
+								if rock and rock.Parent then rock:Destroy() end
+							end)
+						end
+					end)
+				end
+
+				for i = 1, 32 do
+					local angle = math.random() * math.pi * 2
+					local radius = math.random(0, 72) / 10
+					local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+
+					local rock = Instance.new("Part")
+					rock.Size = Vector3.new(math.random(12, 24)/10, math.random(7, 16)/10, math.random(12, 24)/10)
+					rock.Material = groundMaterial
+					rock.BrickColor = groundColor
+					rock.Anchored = true
+					rock.CanCollide = false
+					rock.CFrame = CFrame.new(craterCenter + offset + Vector3.new(0, math.random(-6, 5)/10, 0))
+								  * CFrame.Angles(math.rad(math.random(-40, 40)), math.rad(math.random(0, 360)), math.rad(math.random(-40, 40)))
+					rock.Parent = workspace
+
+					task.delay(5.5, function()
+						if rock and rock.Parent then
+							local bury = TS:Create(rock, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+								CFrame = rock.CFrame * CFrame.new(0, -3.5, 0)
+							})
+							bury:Play()
+							bury.Completed:Connect(function()
+								if rock and rock.Parent then rock:Destroy() end
+							end)
+						end
+					end)
+				end
+
+				for i = 1, 16 do
+					local angle = math.random() * math.pi * 2
+					local radius = math.random(15, 70) / 10
+					local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+
+					local debris = Instance.new("Part")
+					debris.Size = Vector3.new(math.random(5, 12)/10, math.random(4, 10)/10, math.random(5, 12)/10)
+					debris.Material = groundMaterial
+					debris.BrickColor = groundColor
+					debris.Anchored = false
+					debris.CanCollide = true
+					debris.CFrame = CFrame.new(craterCenter + offset + Vector3.new(0, 1.2, 0))
+					debris.Parent = workspace
+
+					local bv = Instance.new("BodyVelocity")
+					bv.MaxForce = Vector3.new(6000, 6000, 6000)
+					bv.Velocity = Vector3.new(math.random(-22, 22), math.random(25, 42), math.random(-22, 22))
+					bv.Parent = debris
+
+					task.delay(0.55, function()
+						if bv then bv:Destroy() end
+					end)
+
+					task.delay(6.5, function()
+						if debris and debris.Parent then
+							debris:Destroy()
+						end
+					end)
+				end
+
+				loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/ULTCam"))()
+				humanoid.WalkSpeed = 16
+			end
+		end)
+	end)
+
+	task.wait(anim.Length)
+	anim.Stop()
+
+	stopFollow()
+	if bv1Update then bv1Update:Disconnect() end
+
+	Instance.new("Animator", humanoid)
+
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/NMGB"))()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/PhantomSever"))()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/OneInchKillerPunch"))()
+   loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/CombatGods"))()
+end)
