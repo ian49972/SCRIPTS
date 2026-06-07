@@ -3,8 +3,6 @@ local workspace = game.Workspace
 local TS = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-writefile("JUN.mp3", game:HttpGet("https://github.com/ian49972/smth/raw/refs/heads/main/JUN.mp3"))
-
 local Object = game:GetObjects("rbxassetid://90348646612628")[1]
 Object.Parent = workspace
 
