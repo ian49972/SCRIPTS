@@ -1,0 +1,432 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local Player = game.Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local camera = Workspace.CurrentCamera
+
+local Existing = Player.Backpack:FindFirstChild("Omni Directional Punch")
+if Existing then Existing:Destroy() end
+
+local Tool = Instance.new("Tool")
+Tool.Name = "Omni Directional Punch"
+Tool.RequiresHandle = false
+Tool.CanBeDropped = false
+Tool.Parent = Player.Backpack
+
+local Asset = game:GetObjects(getcustomasset("Saitama.rbxmx"))[1]
+local OmniPlayerAnim = Asset:FindFirstChild("OmniPlayer", true)
+local OmniRockLandAnim = Asset:FindFirstChild("OmniRockLand", true)
+local OmniLandAnim = Asset:FindFirstChild("OmniLand", true)
+local OmniEnemyAnim = Asset:FindFirstChild("OmniEnemy", true)
+local OmniDebrisFolder = Asset:FindFirstChild("OmniDebris", true)
+
+local Debounce = false
+
+local function CloneMe(char)
+	char.Archivable = true
+	local clone = char:Clone()
+	char.Archivable = false
+	return clone
+end
+
+local function CleanupDebris(flyingRocks)
+	for _, data in ipairs(flyingRocks) do
+		if data.Part then
+			data.Part:Destroy()
+		end
+	end
+end
+
+Tool.Activated:Connect(function()
+	if Debounce then return end
+	Debounce = true
+
+	local Character = Player.Character
+	if not Character then Debounce = false return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	if not HRP then Debounce = false return end
+
+	local originalPlayerCFrame = HRP.CFrame
+
+	HRP.Anchored = true
+
+	local Sound = Instance.new("Sound")
+	Sound.SoundId = getcustomasset("OmniPunch.mp3")
+	Sound.Volume = 2
+	Sound.Parent = workspace
+	Sound:Play()
+
+	local animPlayer = PlayKeyframeSequence(Character, OmniPlayerAnim, 1)
+
+	local flyingRocks = {}
+	local centerPointClone = nil
+	local landingRockClone = nil
+
+	task.delay(2, function()
+		if not OmniDebrisFolder then return end
+
+		local debrisFolder = Instance.new("Folder")
+		debrisFolder.Name = "AlsoNot_ElesLeaf"
+		debrisFolder.Parent = Workspace
+
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {Character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+		local rayResult = Workspace:Raycast(
+			HRP.Position + Vector3.new(0,50,0),
+			Vector3.new(0,-200,0),
+			raycastParams
+		)
+
+		local groundColor = BrickColor.new("Brown").Color
+		local groundMaterial = Enum.Material.Grass
+
+		if rayResult then
+			groundColor = rayResult.Instance.Color
+			groundMaterial = rayResult.Instance.Material
+		end
+
+		for _, original in ipairs(OmniDebrisFolder:GetDescendants()) do
+			if original:IsA("BasePart") then
+				local rock = original:Clone()
+
+				rock.Anchored = true
+				rock.CanCollide = false
+
+				if not (original.Name == "CenterPoint" or original.Name:match("Line")) then
+					rock.Color = groundColor
+					rock.Material = groundMaterial
+				end
+
+				rock.CFrame = original.CFrame * CFrame.new(-171, 350, -12)
+
+				rock.Parent = debrisFolder
+
+				table.insert(flyingRocks, {
+					Part = rock
+				})
+
+				if original.Name == "CenterPoint" then
+					centerPointClone = rock
+				elseif original.Name == "LandingRock" then
+					landingRockClone = rock
+				end
+			end
+		end
+	end)
+
+	task.wait(2)
+
+	local closestChar = nil
+	local closestDist = 30
+	local forward = HRP.CFrame.LookVector
+
+	for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+		if otherPlayer ~= Player and otherPlayer.Character then
+			local otherHRP = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if otherHRP then
+				local toTarget = (otherHRP.Position - HRP.Position)
+				local dist = toTarget.Magnitude
+				if dist < closestDist and dist > 0 then
+					local dot = forward:Dot(toTarget.Unit)
+					if dot > 0.35 then
+						closestDist = dist
+						closestChar = otherPlayer.Character
+					end
+				end
+			end
+		end
+	end
+
+	if not closestChar then
+		task.wait(0.7)
+		Sound:Stop()
+		if animPlayer then animPlayer:Stop(); animPlayer:RestoreAnimator() end
+		HRP.Anchored = false
+		CleanupDebris(flyingRocks)
+		Debounce = false
+		return
+	end
+
+	task.wait(3)
+
+	local clone = CloneMe(closestChar)
+	clone.Parent = workspace
+
+	local cloneHRP = clone:FindFirstChild("HumanoidRootPart")
+
+		local cloneWeld = Instance.new("ManualWeld")
+		cloneWeld.Part0 = centerPointClone
+		cloneWeld.Part1 = cloneHRP
+    cloneWeld.C1 = CFrame.Angles(0, math.rad(180), 0)
+		cloneWeld.Parent = centerPointClone
+
+	local cloneAnim = PlayKeyframeSequence(clone, OmniEnemyAnim, 1)
+   cloneAnim:AdjustSpeed(0.8)
+
+	if animPlayer then 
+		animPlayer:Stop()
+		animPlayer:RestoreAnimator()
+	end
+
+	local animRock = PlayKeyframeSequence(Character, OmniRockLandAnim, 1)
+
+	if landingRockClone and HRP then
+		local targetCFrame = landingRockClone.CFrame 
+			* CFrame.new(0, 0, -8) 
+			* CFrame.Angles(math.rad(-15), 0, 0)
+		
+		local tween = TweenService:Create(HRP, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+			{CFrame = targetCFrame})
+		tween:Play()
+		tween.Completed:Wait()
+	end
+
+	task.wait(animRock.Length - 0.7)
+
+	if animRock then 
+		animRock:Stop()
+		animRock:RestoreAnimator()
+	end
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/OmniCam"))()
+
+local fistMesh = nil
+local DeathCutscene = Asset:FindFirstChild("DeathCutscene")
+
+if DeathCutscene then
+	fistMesh = DeathCutscene:FindFirstChild("Fist")
+end
+
+local cloneHead =
+	clone:FindFirstChild("Head")
+	or clone:FindFirstChild("HeadArmor")
+	or cloneHRP
+
+if cloneHead and fistMesh then
+
+	task.wait(7.3)
+local originalBrightness = Lighting.Brightness
+		local originalAmbient = Lighting.Ambient
+		local originalSky = Lighting:FindFirstChildOfClass("Sky")
+
+		local colorCorrection = Instance.new("ColorCorrectionEffect")
+		colorCorrection.Brightness = -1
+		colorCorrection.Saturation = -1
+		colorCorrection.Contrast = -0.5
+		colorCorrection.Parent = Lighting
+
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = Color3.new(1,1,1)
+		highlight.OutlineColor = Color3.new(1,1,1)
+		highlight.FillTransparency = 0
+		highlight.OutlineTransparency = 0
+		highlight.Parent = clone
+
+		local blackSky = Instance.new("Sky")
+		blackSky.SkyboxBk = "rbxassetid://5151897861"
+		blackSky.SkyboxDn = "rbxassetid://5151897861"
+		blackSky.SkyboxFt = "rbxassetid://5151897861"
+		blackSky.SkyboxLf = "rbxassetid://5151897861"
+		blackSky.SkyboxRt = "rbxassetid://5151897861"
+		blackSky.SkyboxUp = "rbxassetid://5151897861"
+		blackSky.Parent = Lighting
+
+task.delay(0.1, function()
+			colorCorrection:Destroy()
+			highlight:Destroy()
+			if blackSky then blackSky:Destroy() end
+			Lighting.Brightness = originalBrightness
+			Lighting.Ambient = originalAmbient
+			if originalSky then originalSky.Parent = Lighting end
+		end)
+
+	local fists = {}
+
+	local amount = 55
+	local radius = 100
+	local height = 70
+
+	local usedPositions = {}
+
+local function IsFarEnough(pos)
+	for _, otherPos in ipairs(usedPositions) do
+		if (otherPos - pos).Magnitude < 25 then
+			return false
+		end
+	end
+	return true
+end
+
+for i = 1, amount do
+
+	local spawnPos
+
+	repeat
+		local angle = math.rad(math.random(0, 360))
+
+		local dist = math.sqrt(math.random()) * radius
+
+		spawnPos =
+			cloneHead.Position +
+			Vector3.new(
+				math.cos(angle) * dist,
+				height + math.random(-15,15),
+				math.sin(angle) * dist
+			)
+
+	until IsFarEnough(spawnPos)
+
+	table.insert(usedPositions, spawnPos)
+
+		local fist = fistMesh:Clone()
+
+		fist.Parent = clone
+
+		if fist:IsA("BasePart") then
+			fist.CFrame = CFrame.lookAt(
+				spawnPos,
+				cloneHead.Position
+			)
+		elseif fist.PrimaryPart then
+			fist:PivotTo(
+				CFrame.lookAt(
+					spawnPos,
+					cloneHead.Position
+				)
+			)
+		end
+
+		table.insert(fists, fist)
+
+		task.spawn(function()
+			local targetPos = cloneHead.Position + Vector3.new(0,3,0)
+
+			local tween
+
+			if fist:IsA("BasePart") then
+				tween = TweenService:Create(
+					fist,
+					TweenInfo.new(
+						9,
+						Enum.EasingStyle.Linear
+					),
+					{
+						Position = targetPos
+					}
+				)
+			elseif fist.PrimaryPart then
+				local value = Instance.new("CFrameValue")
+				value.Value = fist:GetPivot()
+
+				value:GetPropertyChangedSignal("Value"):Connect(function()
+					if fist.Parent then
+						fist:PivotTo(value.Value)
+					end
+				end)
+
+				tween = TweenService:Create(
+					value,
+					TweenInfo.new(
+						15,
+						Enum.EasingStyle.Linear
+					),
+					{
+						Value = CFrame.lookAt(
+							targetPos,
+							cloneHead.Position
+						)
+					}
+				)
+			end
+
+			if tween then
+				tween:Play()
+			end
+		end)
+	end
+
+	task.spawn(function()
+		while cloneHead and cloneHead.Parent do
+			for _, fist in ipairs(fists) do
+				if fist and fist.Parent then
+					if fist:IsA("BasePart") then
+						fist.CFrame = CFrame.lookAt(
+							fist.Position,
+							cloneHead.Position
+						)
+					elseif fist.PrimaryPart then
+						fist:PivotTo(
+							CFrame.lookAt(
+								fist:GetPivot().Position,
+								cloneHead.Position
+							)
+						)
+					end
+				end
+			end
+			task.wait()
+		end
+	end)
+end
+
+	task.wait(3.4)
+
+local originalBrightness = Lighting.Brightness
+		local originalAmbient = Lighting.Ambient
+		local originalSky = Lighting:FindFirstChildOfClass("Sky")
+
+		local colorCorrection = Instance.new("ColorCorrectionEffect")
+		colorCorrection.Brightness = -1
+		colorCorrection.Saturation = -1
+		colorCorrection.Contrast = -0.5
+		colorCorrection.Parent = Lighting
+
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = Color3.new(1,1,1)
+		highlight.OutlineColor = Color3.new(1,1,1)
+		highlight.FillTransparency = 0
+		highlight.OutlineTransparency = 0
+		highlight.Parent = clone
+
+		local blackSky = Instance.new("Sky")
+		blackSky.SkyboxBk = "rbxassetid://5151897861"
+		blackSky.SkyboxDn = "rbxassetid://5151897861"
+		blackSky.SkyboxFt = "rbxassetid://5151897861"
+		blackSky.SkyboxLf = "rbxassetid://5151897861"
+		blackSky.SkyboxRt = "rbxassetid://5151897861"
+		blackSky.SkyboxUp = "rbxassetid://5151897861"
+		blackSky.Parent = Lighting
+
+task.delay(0.1, function()
+			colorCorrection:Destroy()
+			highlight:Destroy()
+			if blackSky then blackSky:Destroy() end
+			Lighting.Brightness = originalBrightness
+			Lighting.Ambient = originalAmbient
+			if originalSky then originalSky.Parent = Lighting end
+		end)
+
+	if clone then clone:Destroy() end
+
+	local animLand = PlayKeyframeSequence(Character, OmniLandAnim, 1)
+
+	HRP.CFrame = originalPlayerCFrame
+
+CleanupDebris(flyingRocks)
+
+	task.wait(animLand.Length)
+
+camera.FieldOfView = 70
+
+	if animLand then 
+		animLand:Stop()
+		animLand:RestoreAnimator()
+	end
+
+	HRP.Anchored = false
+	Debounce = false
+end)

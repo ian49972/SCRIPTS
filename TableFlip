@@ -1,0 +1,237 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local Player = game.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local Camera = workspace.CurrentCamera
+
+local function startCameraShake(intensity, duration)
+	local shakeConn = RunService.RenderStepped:Connect(function()
+		local rx = (math.random() - 0.5) * intensity
+		local ry = (math.random() - 0.5) * intensity
+		local rz = (math.random() - 0.5) * (intensity * 0.75)
+		Camera.CFrame = Camera.CFrame * CFrame.Angles(rx, ry, rz)
+	end)
+
+	task.delay(duration, function()
+		if shakeConn then shakeConn:Disconnect() end
+	end)--
+
+	return shakeConn
+end
+
+local Existing = Player.Backpack:FindFirstChild("TableFlip")
+if Existing then Existing:Destroy() end
+
+local Tool = Instance.new("Tool")
+Tool.Name = "TableFlip"
+Tool.RequiresHandle = false
+Tool.CanBeDropped = false
+Tool.Parent = Player.Backpack
+
+local Asset = game:GetObjects(getcustomasset("Saitama.rbxmx"))[1]
+local TableFlipAnim = Asset:FindFirstChild("TableFlip", true)
+local TableDebrisFolder = Asset:FindFirstChild("TableDebris", true)
+
+local Debounce = false
+
+Tool.Activated:Connect(function()
+	if Debounce then return end
+	Debounce = true
+
+	local Character = Player.Character
+	if not Character then Debounce = false return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	if not HRP then Debounce = false return end
+
+	HRP.Anchored = true
+
+	task.spawn(function()
+		task.wait(0.2)
+		local Sound = Instance.new("Sound")
+		Sound.SoundId = getcustomasset("Tableflip.mp3")
+		Sound.Volume = 1
+		Sound.Parent = workspace
+		Sound:Play()
+	end)
+
+	local anim = PlayKeyframeSequence(Character, TableFlipAnim, 1)
+
+	task.wait(3.5)
+
+	if TableDebrisFolder then
+		local debrisParts = {}
+		local rootCFrame = HRP.CFrame
+		local forward = rootCFrame.LookVector
+		local right = rootCFrame.RightVector
+
+		local spawnPos = rootCFrame.Position + forward * 7 + Vector3.new(0, -3.5, 0)
+
+		local mainDebris = TableDebrisFolder:FindFirstChild("MainDebris", true)
+		local originalCenter = mainDebris and mainDebris.Position or Vector3.new(0,0,0)
+
+		local rayOrigin = spawnPos + Vector3.new(0, 50, 0)
+		local rayDirection = Vector3.new(0, -100, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {Character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		raycastParams.IgnoreWater = true
+
+		local rayResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+		local groundColor = BrickColor.new("Brown").Color
+		local groundMaterial = Enum.Material.Grass
+		if rayResult then
+			groundColor = rayResult.Instance.Color
+			groundMaterial = rayResult.Instance.Material
+		end
+
+		local baseAngle = math.atan2(forward.X, forward.Z)
+		local correction = math.rad(-40)
+		local playerYRot = CFrame.fromEulerAnglesYXZ(0, baseAngle + correction, 0)
+
+		for _, originalPart in ipairs(TableDebrisFolder:GetDescendants()) do
+			if originalPart:IsA("BasePart") then
+				local clone = originalPart:Clone()
+				clone.Anchored = true
+				clone.CanCollide = false
+				clone.Transparency = 0.4
+				clone.Color = groundColor
+				clone.Material = groundMaterial
+
+				local relativeOffset = originalPart.Position - originalCenter
+				local rotatedOffset = playerYRot.Rotation * relativeOffset
+				local targetPosition = spawnPos + rotatedOffset
+				
+				clone.Position = targetPosition - Vector3.new(0, 15, 0)
+				
+				local originalRot = originalPart.CFrame.Rotation
+				clone.CFrame = CFrame.new(clone.Position) * (playerYRot.Rotation * originalRot)
+				
+				clone.Parent = workspace
+				table.insert(debrisParts, {Part = clone, TargetPos = targetPosition})
+			end
+		end
+
+		startCameraShake(0.08, 0.7)
+
+		for _, data in ipairs(debrisParts) do
+			local tweenInfo = TweenInfo.new(0.9, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			TweenService:Create(data.Part, tweenInfo, {Position = data.TargetPos, Transparency = 0}):Play()
+		end
+
+		task.delay(3, function()
+			for _, data in ipairs(debrisParts) do
+				if data.Part and data.Part.Parent then
+					local tweenInfo = TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+					local tween = TweenService:Create(data.Part, tweenInfo, {Position = data.TargetPos - Vector3.new(0, 18, 0), Transparency = 1})
+					tween:Play()
+					tween.Completed:Connect(function() if data.Part then data.Part:Destroy() end end)
+				end
+			end
+
+			local originalBrightness = Lighting.Brightness
+			local originalAmbient = Lighting.Ambient
+			local originalSky = Lighting:FindFirstChildOfClass("Sky")
+
+			local colorCorrection = Instance.new("ColorCorrectionEffect")
+			colorCorrection.Brightness = -1
+			colorCorrection.Saturation = -1
+			colorCorrection.Contrast = -0.5
+			colorCorrection.Parent = Lighting
+
+			local highlight = Instance.new("Highlight")
+			highlight.FillColor = Color3.new(1,1,1)
+			highlight.OutlineColor = Color3.new(1,1,1)
+			highlight.FillTransparency = 0
+			highlight.OutlineTransparency = 0
+			highlight.Parent = Character
+
+			local blackSky = Instance.new("Sky")
+			blackSky.SkyboxBk = "rbxassetid://5151897861"
+			blackSky.SkyboxDn = "rbxassetid://5151897861"
+			blackSky.SkyboxFt = "rbxassetid://5151897861"
+			blackSky.SkyboxLf = "rbxassetid://5151897861"
+			blackSky.SkyboxRt = "rbxassetid://5151897861"
+			blackSky.SkyboxUp = "rbxassetid://5151897861"
+			blackSky.Parent = Lighting
+
+			task.delay(0.1, function()
+				colorCorrection:Destroy()
+				highlight:Destroy()
+				if blackSky then blackSky:Destroy() end
+				Lighting.Brightness = originalBrightness
+				Lighting.Ambient = originalAmbient
+				if originalSky then originalSky.Parent = Lighting end
+			end)
+
+			startCameraShake(0.12, 5)
+
+			local flyingDebris = {}
+			local launchStart = tick()
+			local launchConnection
+
+			launchConnection = RunService.Heartbeat:Connect(function()
+				if tick() - launchStart > 6 then
+					launchConnection:Disconnect()
+					return
+				end
+
+				for i = 1, 6 do
+					if math.random() < 0.65 then
+						local randomOriginal = TableDebrisFolder:GetDescendants()[math.random(#TableDebrisFolder:GetDescendants())]
+						if randomOriginal and randomOriginal:IsA("BasePart") then
+							local flyer = randomOriginal:Clone()
+							flyer.Anchored = false
+							flyer.CanCollide = false
+							flyer.Transparency = 0.15
+							flyer.Color = groundColor
+							flyer.Material = groundMaterial
+							flyer.Size = flyer.Size * (1.3 + math.random() * 0.6)
+
+							local spreadForward = 20 + math.random() * 200
+							local spreadSide = (math.random() - 0.5) * 200
+							local launchPos = spawnPos + forward * spreadForward + right * spreadSide + Vector3.new(0, 10 + math.random(-5,15), 0)
+
+							local downRay = Workspace:Raycast(launchPos + Vector3.new(0,40,0), Vector3.new(0,-100,0), raycastParams)
+							if downRay then
+								launchPos = Vector3.new(launchPos.X, downRay.Position.Y + 8, launchPos.Z)
+							end
+
+							flyer.CFrame = CFrame.new(launchPos) * (playerYRot.Rotation * randomOriginal.CFrame.Rotation)
+							flyer.Parent = workspace
+
+							local bv = Instance.new("BodyVelocity")
+							bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+							bv.Velocity = forward * (18 + math.random(-25,35)) + 
+										  right * (math.random(-50,50)) + 
+										  Vector3.new(0, 70 + math.random(10,50), 0)
+							bv.Parent = flyer
+
+							table.insert(flyingDebris, flyer)
+
+							task.delay(1, function()
+								if bv and bv.Parent then bv:Destroy() end
+							end)
+
+							task.delay(13, function()
+								if flyer and flyer.Parent then flyer:Destroy() end
+							end)
+						end
+					end
+				end
+			end)
+		end)
+	end
+
+	task.wait(math.max(0, anim.Length - 3.5))
+
+	anim:Stop()
+	anim:RestoreAnimator()
+	HRP.Anchored = false
+
+	Debounce = false
+end)

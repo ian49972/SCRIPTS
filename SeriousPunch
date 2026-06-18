@@ -1,0 +1,198 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local Player = game.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local Camera = workspace.CurrentCamera
+
+local function startCameraShake(intensity, duration)
+	local shakeConn = RunService.RenderStepped:Connect(function()
+		local rx = (math.random() - 0.5) * intensity
+		local ry = (math.random() - 0.5) * intensity
+		local rz = (math.random() - 0.5) * (intensity * 0.75)
+		Camera.CFrame = Camera.CFrame * CFrame.Angles(rx, ry, rz)
+	end)
+
+	task.delay(duration, function()
+		if shakeConn then shakeConn:Disconnect() end
+	end)
+end
+
+local Existing = Player.Backpack:FindFirstChild("Serious Punch")
+if Existing then Existing:Destroy() end
+
+local Tool = Instance.new("Tool")
+Tool.Name = "Serious Punch"
+Tool.RequiresHandle = false
+Tool.CanBeDropped = false
+Tool.Parent = Player.Backpack
+
+local Asset = game:GetObjects(getcustomasset("Saitama.rbxmx"))[1]
+local SeriousPunchAnim = Asset:FindFirstChild("SeriousPunch", true)
+local SeriousDebrisFolder = Asset:FindFirstChild("SeriousDebris", true)
+
+local Debounce = false
+
+Tool.Activated:Connect(function()
+	if Debounce then return end
+	Debounce = true
+
+	local Character = Player.Character
+	if not Character then Debounce = false return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	local RightArm = Character:FindFirstChild("Right Arm") or Character:FindFirstChild("RightHand")
+	if not HRP or not RightArm then Debounce = false return end
+
+	HRP.Anchored = true
+
+	task.spawn(function()
+		task.wait(1.2)
+		local Sound = Instance.new("Sound")
+		Sound.SoundId = getcustomasset("SeriousPunch.mp3")
+		Sound.Volume = 1
+		Sound.Parent = workspace
+		Sound:Play()
+	end)
+
+	local anim = PlayKeyframeSequence(Character, SeriousPunchAnim, 1)
+ 
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/SeriousCam"))()
+
+	task.wait(4)
+
+	local airAttachment = Asset:FindFirstChild("Air", true)
+	if airAttachment then
+		local clonedAir = airAttachment:Clone()
+		clonedAir.Parent = RightArm
+		clonedAir.Push.Enabled = true
+		task.delay(2, function()
+			if clonedAir and clonedAir.Parent then
+				clonedAir:Destroy()
+			end
+		end)
+	end
+
+	task.wait(1.7)
+
+	if SeriousDebrisFolder then
+		local debrisParts = {}
+		local rootCFrame = HRP.CFrame
+		local forward = rootCFrame.LookVector
+		local right = rootCFrame.RightVector
+
+		local spawnPos = rootCFrame.Position + forward * 8 + Vector3.new(0, -3, 0)
+
+		local lDebris = SeriousDebrisFolder:FindFirstChild("LDebris", true)
+		local originalCenter = lDebris and lDebris.Position or Vector3.new(0,0,0)
+
+		local rayOrigin = spawnPos + Vector3.new(0, 50, 0)
+		local rayDirection = Vector3.new(0, -100, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {Character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		raycastParams.IgnoreWater = true
+
+		local rayResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+		local groundColor = BrickColor.new("Brown").Color
+		local groundMaterial = Enum.Material.Grass
+		if rayResult then
+			groundColor = rayResult.Instance.Color
+			groundMaterial = rayResult.Instance.Material
+		end
+
+		local baseAngle = math.atan2(forward.X, forward.Z)
+		local correction = math.rad(210)
+		local playerYRot = CFrame.fromEulerAnglesYXZ(0, baseAngle + correction, 0)
+
+		for _, originalPart in ipairs(SeriousDebrisFolder:GetDescendants()) do
+			if originalPart:IsA("BasePart") then
+				local clone = originalPart:Clone()
+				clone.Anchored = true
+				clone.CanCollide = false
+				clone.Transparency = 0.4
+				clone.Color = groundColor
+				clone.Material = groundMaterial
+
+				local relativeOffset = originalPart.Position - originalCenter
+				local rotatedOffset = playerYRot.Rotation * relativeOffset
+				local targetPosition = spawnPos + rotatedOffset
+				
+				clone.Position = targetPosition - Vector3.new(0, 12, 0)
+				
+				local originalRot = originalPart.CFrame.Rotation
+				clone.CFrame = CFrame.new(clone.Position) * (playerYRot.Rotation * originalRot)
+				
+				clone.Parent = workspace
+				table.insert(debrisParts, {Part = clone, TargetPos = targetPosition})
+			end
+		end
+
+		local originalBrightness = Lighting.Brightness
+		local originalAmbient = Lighting.Ambient
+		local originalSky = Lighting:FindFirstChildOfClass("Sky")
+
+		local colorCorrection = Instance.new("ColorCorrectionEffect")
+		colorCorrection.Brightness = -1
+		colorCorrection.Saturation = -1
+		colorCorrection.Contrast = -0.5
+		colorCorrection.Parent = Lighting
+
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = Color3.new(1,1,1)
+		highlight.OutlineColor = Color3.new(1,1,1)
+		highlight.FillTransparency = 0
+		highlight.OutlineTransparency = 0
+		highlight.Parent = Character
+
+		local blackSky = Instance.new("Sky")
+		blackSky.SkyboxBk = "rbxassetid://5151897861"
+		blackSky.SkyboxDn = "rbxassetid://5151897861"
+		blackSky.SkyboxFt = "rbxassetid://5151897861"
+		blackSky.SkyboxLf = "rbxassetid://5151897861"
+		blackSky.SkyboxRt = "rbxassetid://5151897861"
+		blackSky.SkyboxUp = "rbxassetid://5151897861"
+		blackSky.Parent = Lighting
+
+		task.delay(0.1, function()
+			colorCorrection:Destroy()
+			highlight:Destroy()
+			if blackSky then blackSky:Destroy() end
+			Lighting.Brightness = originalBrightness
+			Lighting.Ambient = originalAmbient
+			if originalSky then originalSky.Parent = Lighting end
+		end)
+
+		startCameraShake(0.11, 1)
+
+		for _, data in ipairs(debrisParts) do
+			local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			TweenService:Create(data.Part, tweenInfo, {Position = data.TargetPos, Transparency = 0}):Play()
+		end
+
+		task.delay(4, function()
+			for _, data in ipairs(debrisParts) do
+				if data.Part and data.Part.Parent then
+					local tweenInfo = TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+					local tween = TweenService:Create(data.Part, tweenInfo, {Position = data.TargetPos - Vector3.new(0, 80, 0), Transparency = 0})
+					tween:Play()
+					tween.Completed:Connect(function()
+						if data.Part then data.Part:Destroy() end
+					end)
+				end
+			end
+		end)
+	end
+
+	task.wait(math.max(0, anim.Length - 5.9))
+
+	anim:Stop()
+	anim:RestoreAnimator()
+
+	HRP.Anchored = false
+
+	Debounce = false
+end)

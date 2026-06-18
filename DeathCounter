@@ -1,0 +1,225 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local Player = game.Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local Existing = Player.Backpack:FindFirstChild("Death Counter")
+if Existing then Existing:Destroy() end
+
+local Tool = Instance.new("Tool")
+Tool.Name = "Death Counter"
+Tool.RequiresHandle = false
+Tool.CanBeDropped = false
+Tool.Parent = Player.Backpack
+
+local Asset = game:GetObjects(getcustomasset("Saitama.rbxmx"))[1]
+local DeathP1Anim = Asset:FindFirstChild("DeathP1", true)
+local DeathP2Anim = Asset:FindFirstChild("DeathP2", true)
+local DeathEnemyAnim = Asset:FindFirstChild("DeathEnemy", true)
+
+local Debounce = false
+
+local function CloneMe(char)
+	char.Archivable = true
+	local clone = char:Clone()
+	char.Archivable = false
+	return clone
+end
+
+Tool.Activated:Connect(function()
+	if Debounce then return end
+	Debounce = true
+
+	local Character = Player.Character
+	if not Character then Debounce = false return end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	local Head = Character:FindFirstChild("Head")
+	if not HRP or not Head then 
+		HRP.Anchored = false
+		Debounce = false 
+		return 
+	end
+
+	HRP.Anchored = true
+
+	local closestChar = nil
+	local closestDist = 50
+
+	for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+		if otherPlayer ~= Player and otherPlayer.Character then
+			local otherHRP = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if otherHRP then
+				local dist = (otherHRP.Position - HRP.Position).Magnitude
+				if dist < closestDist then
+					closestDist = dist
+					closestChar = otherPlayer.Character
+				end
+			end
+		end
+	end
+
+	if not closestChar then
+		HRP.Anchored = false
+		Debounce = false
+		return
+	end
+
+	local Sound = Instance.new("Sound")
+	Sound.SoundId = getcustomasset("DeathCounter.mp3")
+	Sound.Volume = 1
+	Sound.Parent = workspace
+	Sound:Play()
+
+	local deathHighlight = Asset:FindFirstChild("Death", true)
+	local eyesUnion = Asset:FindFirstChild("Eyes", true)
+
+	if deathHighlight then
+		local highlightClone = deathHighlight:Clone()
+		highlightClone.Parent = Character
+	end
+
+	if eyesUnion then
+		local eyesClone = eyesUnion:Clone()
+		eyesClone.Parent = Character
+		
+		local weldConstraint = eyesClone:FindFirstChildOfClass("WeldConstraint")
+		if weldConstraint then
+			weldConstraint.Part0 = Head
+		end
+	end
+
+	local animP1 = PlayKeyframeSequence(Character, DeathP1Anim, 1)
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/DeathCam"))()
+
+	local clone = CloneMe(closestChar)
+	clone.Parent = workspace
+
+	local cloneHRP = clone:FindFirstChild("HumanoidRootPart")
+	if cloneHRP and HRP then
+		cloneHRP.CFrame = HRP.CFrame * CFrame.new(0, 0, -4) * CFrame.Angles(0, 0, 0)
+	end
+
+	local cloneWeld = Instance.new("Weld")
+	cloneWeld.Part0 = HRP
+	cloneWeld.Part1 = cloneHRP
+	cloneWeld.C0 = HRP.CFrame:ToObjectSpace(cloneHRP.CFrame)
+	cloneWeld.C1 = CFrame.new()
+	cloneWeld.Parent = HRP
+
+	local cloneAnim = PlayKeyframeSequence(clone, DeathEnemyAnim, 1)
+	cloneAnim:AdjustSpeed(0.7)
+
+	task.spawn(function()
+		task.wait(8.7)
+		if clone and clone.Parent then
+			clone:Destroy()
+		end
+	end)
+
+	task.spawn(function()
+		task.wait(animP1.Length + 6)
+	end)
+
+	task.wait(3)
+
+	local deathGUI = Asset:FindFirstChild("DEATH", true)
+	if deathGUI and deathGUI:IsA("ScreenGui") then
+		local guiClone = deathGUI:Clone()
+		guiClone.Parent = Player.PlayerGui
+		guiClone.ResetOnSpawn = false
+		
+		task.delay(2, function()
+			if guiClone and guiClone.Parent then
+				guiClone:Destroy()
+			end
+
+			local cutsceneModel = Asset:FindFirstChild("DeathCutscene", true)
+			if cutsceneModel then
+				local modelClone = cutsceneModel:Clone()
+				modelClone.Parent = Workspace
+
+				for _, part in ipairs(modelClone:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CastShadow = false
+					end
+				end
+
+				local cammPart = modelClone:FindFirstChild("Camm")
+				local headCframePart = modelClone:FindFirstChild("HeadCFrame")
+				local fistMesh = modelClone:FindFirstChild("Fist", true)
+
+				if cammPart then
+					local camera = workspace.CurrentCamera
+					local originalCameraType = camera.CameraType
+					local originalCFrame = camera.CFrame
+					
+					camera.CameraType = Enum.CameraType.Scriptable
+					camera.CFrame = cammPart.CFrame
+
+					if headCframePart and Head then
+						headCframePart.Color = Head.Color
+					end
+
+					if fistMesh and fistMesh:IsA("BasePart") then
+						local startCFrame = fistMesh.CFrame
+						local tweenInfo = TweenInfo.new(3.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+						local goal = {CFrame = startCFrame * CFrame.new(0, 0, -20)}
+						local fistTween = TweenService:Create(fistMesh, tweenInfo, goal)
+						fistTween:Play()
+
+						local shakeConnection = RunService.Heartbeat:Connect(function()
+							if fistMesh and fistMesh.Parent then
+								local shake = CFrame.Angles(
+									(math.random() - 0.5) * 0.03,
+									(math.random() - 0.5) * 0.03,
+									(math.random() - 0.5) * 0.03
+								)
+								fistMesh.CFrame = fistMesh.CFrame * shake
+							else
+								shakeConnection:Disconnect()
+							end
+						end)
+
+						fistTween.Completed:Connect(function()
+							if shakeConnection then shakeConnection:Disconnect() end
+						end)
+					end
+
+					task.delay(3, function()
+						camera.CameraType = originalCameraType
+						camera.CFrame = originalCFrame
+						if modelClone then modelClone:Destroy() end
+					end)
+				end
+			end
+		end)
+	end
+
+	for _, obj in ipairs(Character:GetChildren()) do
+		if obj.Name == "Death" or obj.Name == "Eyes" then
+			obj:Destroy()
+		end
+	end
+
+	if animP1 then 
+		animP1:Stop()
+		animP1:RestoreAnimator()
+	end
+
+	local animP2 = PlayKeyframeSequence(Character, DeathP2Anim, 1)
+	animP2:AdjustSpeed(1.1)
+
+	task.wait(animP2.Length - 0.5)
+
+	if animP2 then 
+		animP2:Stop()
+		animP2:RestoreAnimator()
+	end
+
+	HRP.Anchored = false
+
+	Debounce = false
+end)
