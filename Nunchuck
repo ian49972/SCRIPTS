@@ -1,0 +1,230 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local connections = {}
+
+local function Connect(sig, fn)
+local conn = sig:Connect(fn)
+table.insert(connections, conn)
+return conn
+end
+
+local function Cleanup()
+for _, conn in ipairs(connections) do
+pcall(function() conn:Disconnect() end)
+end
+connections = {}
+end
+
+player.CharacterAdded:Connect(function(newChar)
+Cleanup()
+character = newChar
+hrp = newChar:WaitForChild("HumanoidRootPart")
+humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+player.CharacterRemoving:Connect(Cleanup)
+
+
+local tool = Instance.new("Tool")
+tool.Name = "Nunchuck Flurry"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("Shinji.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local NunStartKS = AnimsFolder:WaitForChild("NunStart")
+local NunEnemyKS = AnimsFolder:WaitForChild("NunEnemy")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+Cleanup()
+
+if not character or not character.Parent then
+	return
+end
+
+local hrp = character:FindFirstChild("HumanoidRootPart")
+local humanoid = character:FindFirstChild("Humanoid")
+
+if not hrp or not humanoid then
+	return
+end
+
+local originalSpeed = humanoid.WalkSpeed
+
+local animator = humanoid:FindFirstChild("Animator")
+if animator then
+	animator:Destroy()
+end
+
+humanoid.WalkSpeed = 0
+
+local nunchuck = asset:FindFirstChild("Nunchuck", true)
+
+if nunchuck then
+	nunchuck = nunchuck:Clone()
+	nunchuck.Parent = character
+
+	local motor = nunchuck:FindFirstChildOfClass("Motor6D", true)
+
+	local rightArm =
+		character:FindFirstChild("Right Arm")
+		or character:FindFirstChild("RightHand")
+		or character:FindFirstChild("RightLowerArm")
+
+	if motor and rightArm then
+		motor.Part0 = rightArm
+	end
+
+	local handle = nunchuck:FindFirstChild("Handle", true)
+
+	if handle and handle:IsA("BasePart") then
+		handle.Anchored = false
+	end
+end
+
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("Nunchuck.mp3")
+sound.Volume = 1
+sound.Parent = workspace
+sound:Play()
+
+local startAnim = PlayKeyframeSequence(character, NunStartKS, 1)
+startAnim:AdjustSpeed(1 + 0.07)
+
+task.delay(0.5, function()
+
+	local targetCharacter = nil
+	local closestDistance = math.huge
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+
+			local dist =
+				(hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+
+			if dist < closestDistance then
+				closestDistance = dist
+				targetCharacter = p.Character
+			end
+		end
+	end
+
+	if not targetCharacter then
+		return
+	end
+
+	targetCharacter.Archivable = true
+
+	local clone = targetCharacter:Clone()
+
+	targetCharacter.Archivable = false
+
+	clone.Parent = workspace
+
+	local cloneHRP = clone:FindFirstChild("HumanoidRootPart")
+
+	if cloneHRP then
+
+		cloneHRP.CFrame =
+			hrp.CFrame *
+			CFrame.new(0, 0, -3) *
+			CFrame.Angles(0, math.rad(180), 0)
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hrp
+		weld.Part1 = cloneHRP
+		weld.Parent = hrp
+	end
+
+	PlayKeyframeSequence(clone, NunEnemyKS, 1)
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(50000, 0, 50000)
+	bv.Parent = hrp
+
+	local dashConnection
+
+	dashConnection = RunService.Heartbeat:Connect(function()
+
+		if bv.Parent then
+
+			bv.Velocity =
+				hrp.CFrame.LookVector * 12
+		end
+	end)
+
+	task.spawn(function()
+
+		while humanoid.Parent and humanoid.HipHeight < 40 do
+
+			humanoid.HipHeight =
+				math.min(
+					40,
+					humanoid.HipHeight + 1.5
+				)
+
+			task.wait(0.1)
+		end
+	end)
+
+	task.delay(4, function()
+
+		if dashConnection then
+			dashConnection:Disconnect()
+		end
+
+		if bv then
+			bv:Destroy()
+		end
+
+		while humanoid.Parent and humanoid.HipHeight > 0 do
+
+			humanoid.HipHeight =
+				math.max(
+					0,
+					humanoid.HipHeight - 10
+				)
+
+			task.wait(0.1)
+		end
+
+		startAnim:RestoreAnimator()
+		startAnim:Stop()
+
+		humanoid.WalkSpeed = originalSpeed
+
+		if clone then
+			clone:Destroy()
+		end
+
+		if nunchuck then
+			nunchuck:Destroy()
+		end
+
+		if sound then
+			sound:Stop()
+			sound:Destroy()
+		end
+
+		if humanoid and not humanoid:FindFirstChild("Animator") then
+			Instance.new("Animator", humanoid)
+		end
+	end)
+end)
+
+end)

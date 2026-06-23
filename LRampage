@@ -1,0 +1,198 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local connections = {}
+
+local function Connect(sig, fn)
+local conn = sig:Connect(fn)
+table.insert(connections, conn)
+return conn
+end
+
+local function Cleanup()
+for _, conn in ipairs(connections) do
+pcall(function() conn:Disconnect() end)
+end
+connections = {}
+end
+
+player.CharacterAdded:Connect(function(newChar)
+Cleanup()
+character = newChar
+hrp = newChar:WaitForChild("HumanoidRootPart")
+humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+player.CharacterRemoving:Connect(Cleanup)
+
+
+local tool = Instance.new("Tool")
+tool.Name = "Lightning Rampage"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("Shinji.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local RampageStartKS = AnimsFolder:WaitForChild("RampageStart")
+local RampageEnemyKS = AnimsFolder:WaitForChild("RampageEnemy")
+local RampageHitKS = AnimsFolder:WaitForChild("RampageHit")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+Cleanup()
+
+if not character or not character.Parent then
+	return
+end
+
+local hrp = character:FindFirstChild("HumanoidRootPart")
+local humanoid = character:FindFirstChild("Humanoid")
+
+if not hrp or not humanoid then
+	return
+end
+
+local originalSpeed = humanoid.WalkSpeed
+
+local animator = humanoid:FindFirstChild("Animator")
+if animator then
+	animator:Destroy()
+end
+
+humanoid.WalkSpeed = 0
+
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("RampageHit.mp3")
+sound.Volume = 1
+sound.Parent = workspace
+sound:Play()
+
+local startAnim = PlayKeyframeSequence(character, RampageStartKS, 1)
+
+task.delay(3.7, function()
+
+	if not humanoid or not humanoid.Parent then
+		return
+	end
+
+	humanoid.HipHeight = 10
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(50000, 0, 50000)
+	bv.Parent = hrp
+
+	local moveConn
+
+	moveConn = RunService.Heartbeat:Connect(function()
+		if bv.Parent then
+			bv.Velocity = hrp.CFrame.LookVector * 28
+		end
+	end)
+
+	task.delay(2.5, function()
+
+		if moveConn then
+			moveConn:Disconnect()
+		end
+
+		if bv and bv.Parent then
+			bv:Destroy()
+		end
+
+		humanoid.HipHeight = 0
+	end)
+end)
+
+task.delay(2, function()
+
+	local targetCharacter = nil
+	local closestDistance = math.huge
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+
+			local dist =
+				(hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+
+			if dist < closestDistance then
+				closestDistance = dist
+				targetCharacter = p.Character
+			end
+		end
+	end
+
+	startAnim:Stop()
+
+	if not targetCharacter then
+
+		humanoid.WalkSpeed = originalSpeed
+
+		if sound then
+			sound:Destroy()
+		end
+
+		if humanoid and not humanoid:FindFirstChild("Animator") then
+			Instance.new("Animator", humanoid)
+		end
+
+		return
+	end
+
+	targetCharacter.Archivable = true
+	local clone = targetCharacter:Clone()
+	targetCharacter.Archivable = false
+
+	clone.Parent = workspace
+
+	local cloneHRP = clone:FindFirstChild("HumanoidRootPart")
+
+	if cloneHRP then
+
+		cloneHRP.CFrame =
+			hrp.CFrame *
+			CFrame.new(0, 0, 0) *
+			CFrame.Angles(0, math.rad(180), 0)
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hrp
+		weld.Part1 = cloneHRP
+		weld.Parent = hrp
+	end
+
+	local hitAnim = PlayKeyframeSequence(character, RampageHitKS, 1)
+	local enemyAnim = PlayKeyframeSequence(clone, RampageEnemyKS, 1)
+
+	task.delay(hitAnim.Length, function()
+
+		if clone then
+			clone:Destroy()
+		end
+
+		humanoid.HipHeight = 0
+		humanoid.WalkSpeed = originalSpeed
+
+		hitAnim:RestoreAnimator()
+
+		hitAnim:Stop()
+		enemyAnim:Stop()
+
+		if sound then
+			sound:Destroy()
+		end
+	end)
+end)
+
+end)

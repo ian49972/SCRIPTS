@@ -1,0 +1,193 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local connections = {}
+
+local function Connect(sig, fn)
+local conn = sig:Connect(fn)
+table.insert(connections, conn)
+return conn
+end
+
+local function Cleanup()
+for _, conn in ipairs(connections) do
+pcall(function() conn:Disconnect() end)
+end
+connections = {}
+end
+
+player.CharacterAdded:Connect(function(newChar)
+Cleanup()
+character = newChar
+hrp = newChar:WaitForChild("HumanoidRootPart")
+humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+player.CharacterRemoving:Connect(Cleanup)
+
+local tool = Instance.new("Tool")
+tool.Name = "Draco Meteor"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("Shinji.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+local DracoStartKS = AnimsFolder:WaitForChild("DracoStart")
+local DracoEndKS = AnimsFolder:WaitForChild("DracoEnd")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+Cleanup()
+
+if not character or not character.Parent then
+return
+end
+
+local humanoid = character:FindFirstChild("Humanoid")
+if not humanoid then
+return
+end
+
+local originalSpeed = humanoid.WalkSpeed
+
+local animator = humanoid:FindFirstChild("Animator")
+if animator then
+animator:Destroy()
+end
+
+humanoid.WalkSpeed = 0
+
+local startAnim = PlayKeyframeSequence(character, DracoStartKS, 1)
+
+local dracoSound = Instance.new("Sound")
+dracoSound.SoundId = getcustomasset("DracoStart.mp3")
+dracoSound.Volume = 1
+dracoSound.Parent = workspace
+dracoSound:Play()
+
+local targetHRP = nil
+local shortestDistance = math.huge
+
+for _, p in ipairs(Players:GetPlayers()) do
+	if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+
+		local dist = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+
+		if dist < shortestDistance then
+			shortestDistance = dist
+			targetHRP = p.Character.HumanoidRootPart
+		end
+	end
+end
+
+task.delay(10, function()
+
+	if not targetHRP then
+		return
+	end
+
+	local marker = asset:FindFirstChild("Target", true)
+
+	if not marker then
+		warn("Target GUI not found")
+		return
+	end
+
+	marker = marker:Clone()
+	marker.Parent = workspace
+
+	if marker:IsA("BillboardGui") then
+		marker.Adornee = targetHRP
+	end
+
+	local icon = marker:FindFirstChild("Icon", true)
+
+	if icon and icon:IsA("ImageLabel") then
+
+		task.spawn(function()
+
+			while marker.Parent and icon.Parent do
+				icon.Rotation += 4
+				task.wait()
+			end
+
+		end)
+	end
+
+	task.delay(3, function()
+		if marker then
+			marker:Destroy()
+		end
+	end)
+
+end)
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/DracoCam"))()
+
+task.delay(1.7, function()
+if humanoid and humanoid.Parent then
+humanoid.HipHeight = 300
+end
+end)
+
+task.delay(13, function()
+
+if not humanoid or not humanoid.Parent then  
+	return  
+end  
+
+local lowering = true  
+
+task.spawn(function()  
+
+	while lowering and humanoid and humanoid.Parent do  
+
+		humanoid.HipHeight = math.max(  
+			0,  
+			humanoid.HipHeight - 7  
+		)  
+
+		if humanoid.HipHeight <= 0 then  
+
+			lowering = false  
+
+			startAnim:Stop()  
+
+			local endAnim = PlayKeyframeSequence(character, DracoEndKS, 1)  
+
+			task.delay(endAnim.Length, function()  
+
+				humanoid.HipHeight = 0  
+				humanoid.WalkSpeed = originalSpeed  
+
+				endAnim:RestoreAnimator()  
+				endAnim:Stop()  
+
+				if humanoid and not humanoid:FindFirstChild("Animator") then  
+					Instance.new("Animator", humanoid)  
+				end  
+			end)  
+
+			break  
+		end  
+
+		task.wait(0.03)  
+	end  
+end)
+
+end)
+
+end)
