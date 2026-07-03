@@ -68,7 +68,6 @@ tool.Activated:Connect(function()
 	local animator = humanoid:FindFirstChild("Animator")
 	if animator then animator:Destroy() end
 
-	-- SOUND
 	local sound = Instance.new("Sound")
 	sound.SoundId = getcustomasset("DFury.mp3")
 	sound.Volume = 1
@@ -90,18 +89,12 @@ tool.Activated:Connect(function()
 
 	task.delay(5, function()
 
-		------------------------------------------------
-		-- STEP 1: SPAWN FREEZE (1 SECOND)
-		------------------------------------------------
 		local base = hrp.CFrame
 		black.CFrame = base * CFrame.new(-20, 40, 0)
 		white.CFrame = base * CFrame.new(20, 40, 0)
 
 		task.wait(1)
 
-		------------------------------------------------
-		-- STEP 2: ORBIT + FALL TO Y=10
-		------------------------------------------------
 		local start = os.clock()
 		local orbitRadius = 20
 		local orbitSpeed = 3
@@ -130,18 +123,12 @@ tool.Activated:Connect(function()
 			black.CFrame = orbit(Vector3.new(-6, 0, 0), 0)
 			white.CFrame = orbit(Vector3.new(6, 0, 0), math.pi)
 
-			------------------------------------------------
-			-- STEP 3: REACH Y=10 → FREEZE 1 SECOND
-			------------------------------------------------
 			if y <= 10 then
 				active = false
 				conn:Disconnect()
 
 				task.wait(1)
 
-				------------------------------------------------
-				-- STEP 4: SLAM
-				------------------------------------------------
 				local slam1 = TweenService:Create(black, TweenInfo.new(0.2), {
 					CFrame = hrp.CFrame
 				})
@@ -155,20 +142,15 @@ tool.Activated:Connect(function()
 
 				slam1.Completed:Wait()
 
-------------------------------------------------
--- STEP 5: YINYANG (HORIZONTAL FIXED PROPERLY)
-------------------------------------------------
 local yin = asset:FindFirstChild("YinYang", true):Clone()
 yin.Parent = workspace
 
--- FORCE FLAT GROUND PLANE (NO LOOKAT)
 yin.CFrame = CFrame.new(hrp.Position + Vector3.new(0, -3, 0)) * CFrame.Angles(0, 0, math.rad(90))
 
 task.spawn(function()
 	local startSpin = os.clock()
 
 	while os.clock() - startSpin < 5 do
-		-- ONLY Y-AXIS SPIN (no tilt possible)
 		yin.CFrame = yin.CFrame * CFrame.Angles(math.rad(35), 0, 0)
 		task.wait()
 	end
@@ -176,9 +158,6 @@ task.spawn(function()
 	yin:Destroy()
 end)
 
-				------------------------------------------------
-				-- STEP 6: EFFECTS
-				------------------------------------------------
 				local tornado = asset:FindFirstChild("Tornado", true):Clone()
 				local explosion = asset:FindFirstChild("Explosion", true):Clone()
 
@@ -200,9 +179,6 @@ end)
 					end
 				end)
 
-				------------------------------------------------
-				-- CLEANUP (DELETE ORBS AFTER SLAM)
-				------------------------------------------------
 				task.delay(1, function()
 					if black then black:Destroy() end
 					if white then white:Destroy() end
@@ -213,9 +189,6 @@ end)
 		end)
 	end)
 
-	------------------------------------------------
-	-- CLEANUP ANIM
-	------------------------------------------------
 	task.delay(anim.Length, function()
 
 		anim:Stop()
@@ -226,6 +199,10 @@ end)
 		if humanoid and not humanoid:FindFirstChild("Animator") then
 			Instance.new("Animator", humanoid)
 		end
+
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/DragonBlitz"))()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/DFang"))()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/SCRIPTS/refs/heads/main/DraconicHonor"))()
 
 		if sound then sound:Destroy() end
 	end)
