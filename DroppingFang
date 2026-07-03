@@ -66,22 +66,17 @@ tool.Activated:Connect(function()
 
 	humanoid.WalkSpeed = 0
 
-	-- SOUND
 	local sound = Instance.new("Sound")
 	sound.SoundId = getcustomasset("DFang.mp3")
 	sound.Volume = 1
 	sound.Parent = workspace
 	sound:Play()
-
-	-- ANIM
 	local anim = PlayKeyframeSequence(character, DFangKS, 1)
 
-	-- WAIT 3 SECONDS (your original requirement stays)
 	task.delay(2, function()
 
 		if not humanoid or not humanoid.Parent then return end
 
-		-- INSTANT LIFT (start float properly)
 		humanoid.HipHeight = 70
 
 		local bv = Instance.new("BodyVelocity")
@@ -91,7 +86,6 @@ tool.Activated:Connect(function()
 		local running = true
 		local fallingStarted = false
 
-		-- forward motion (consistent)
 		local moveConn = RunService.Heartbeat:Connect(function()
 			if not bv or not bv.Parent then return end
 			bv.Velocity = hrp.CFrame.LookVector * 100
@@ -103,20 +97,16 @@ tool.Activated:Connect(function()
 
 			while running and humanoid and humanoid.Parent do
 
-				-- IMPORTANT: give real "float time" before fall starts
 				if not fallingStarted then
 					if tick() - startTime >= 0.2 then
 						fallingStarted = true
 					end
 				end
 
-				-- only start falling AFTER short float window
 				if fallingStarted then
-					-- smooth nonlinear fall (not instant drop)
 					humanoid.HipHeight = humanoid.HipHeight - (1 + humanoid.HipHeight * 0.6)
 				end
 
-				-- end condition
 				if humanoid.HipHeight <= 0 then
 
 					running = false
