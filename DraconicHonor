@@ -71,25 +71,13 @@ tool.Activated:Connect(function()
 
 	humanoid.WalkSpeed = 0
 
-	---------------------------------------------------
-	-- SOUND
-	---------------------------------------------------
-
 	local sound = Instance.new("Sound")
 	sound.SoundId = getcustomasset("DHonor.mp3")
 	sound.Volume = 1
 	sound.Parent = workspace
 	sound:Play()
 
-	---------------------------------------------------
-	-- START ANIM
-	---------------------------------------------------
-
 	local startAnim = PlayKeyframeSequence(character, DHonorStartKS, 1)
-
-	---------------------------------------------------
-	-- DRAGON SPAWN (STAYS ALIVE ON HIT)
-	---------------------------------------------------
 
 	local dragon
 	local dragonStartAnim
@@ -125,10 +113,6 @@ tool.Activated:Connect(function()
 		end
 	end
 
-	---------------------------------------------------
-	-- MOVEMENT PHASE (START AFTER 2 SECONDS)
-	---------------------------------------------------
-
 	local moveBV
 	local moveConn
 
@@ -156,20 +140,12 @@ tool.Activated:Connect(function()
 		end)
 	end)
 
-	---------------------------------------------------
-	-- HIT PHASE (NO DRACOATTACK)
-	---------------------------------------------------
-
 	task.delay(4.5, function()
 
 		startAnim:Stop()
 
 		if moveConn then moveConn:Disconnect() end
 		if moveBV then moveBV:Destroy() end
-
-		---------------------------------------------------
-		-- TARGET CHECK
-		---------------------------------------------------
 
 		local target = nil
 		local closest = math.huge
@@ -209,10 +185,6 @@ tool.Activated:Connect(function()
 			return
 		end
 
-		---------------------------------------------------
-		-- HIT
-		---------------------------------------------------
-
 		target.Archivable = true
 		local clone = target:Clone()
 		target.Archivable = false
@@ -247,9 +219,6 @@ dragonStartAnim:Stop()
 			end)
 		end
 
-		---------------------------------------------------
-		-- DASH AFTER 3 SECONDS (FIXED)
-		---------------------------------------------------
 
 		task.delay(5, function()
 
