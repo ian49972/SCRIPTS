@@ -1,0 +1,145 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local connections = {}
+
+local function Connect(sig, fn)
+local conn = sig:Connect(fn)
+table.insert(connections, conn)
+return conn
+end
+
+local function Cleanup()
+for _, conn in ipairs(connections) do
+pcall(function() conn:Disconnect() end)
+end
+connections = {}
+end
+
+player.CharacterAdded:Connect(function(newChar)
+Cleanup()
+character = newChar
+hrp = newChar:WaitForChild("HumanoidRootPart")
+humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+player.CharacterRemoving:Connect(Cleanup)
+
+
+local tool = Instance.new("Tool")
+tool.Name = "Dropping Fang"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("MArtist.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+
+local DFangKS = AnimsFolder:WaitForChild("DFang")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+	Cleanup()
+
+	if not character or not character.Parent then return end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not hrp or not humanoid then return end
+
+	local originalSpeed = humanoid.WalkSpeed
+
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+	humanoid.WalkSpeed = 0
+
+	-- SOUND
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("DFang.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	-- ANIM
+	local anim = PlayKeyframeSequence(character, DFangKS, 1)
+
+	-- WAIT 3 SECONDS (your original requirement stays)
+	task.delay(2, function()
+
+		if not humanoid or not humanoid.Parent then return end
+
+		-- INSTANT LIFT (start float properly)
+		humanoid.HipHeight = 70
+
+		local bv = Instance.new("BodyVelocity")
+		bv.MaxForce = Vector3.new(1e9, 0, 1e9)
+		bv.Parent = hrp
+
+		local running = true
+		local fallingStarted = false
+
+		-- forward motion (consistent)
+		local moveConn = RunService.Heartbeat:Connect(function()
+			if not bv or not bv.Parent then return end
+			bv.Velocity = hrp.CFrame.LookVector * 100
+		end)
+
+		task.spawn(function()
+
+			local startTime = tick()
+
+			while running and humanoid and humanoid.Parent do
+
+				-- IMPORTANT: give real "float time" before fall starts
+				if not fallingStarted then
+					if tick() - startTime >= 0.2 then
+						fallingStarted = true
+					end
+				end
+
+				-- only start falling AFTER short float window
+				if fallingStarted then
+					-- smooth nonlinear fall (not instant drop)
+					humanoid.HipHeight = humanoid.HipHeight - (1 + humanoid.HipHeight * 0.6)
+				end
+
+				-- end condition
+				if humanoid.HipHeight <= 0 then
+
+					running = false
+
+					if moveConn then moveConn:Disconnect() end
+					if bv then bv:Destroy() end
+
+					anim:Stop()
+					anim:RestoreAnimator()
+
+					humanoid.WalkSpeed = originalSpeed
+					humanoid.HipHeight = 0
+
+
+					if humanoid and not humanoid:FindFirstChild("Animator") then
+						Instance.new("Animator", humanoid)
+					end
+
+					break
+				end
+
+				task.wait(0.3)
+			end
+		end)
+	end)
+end)

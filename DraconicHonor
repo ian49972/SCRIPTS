@@ -1,0 +1,309 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local connections = {}
+
+local function Connect(sig, fn)
+local conn = sig:Connect(fn)
+table.insert(connections, conn)
+return conn
+end
+
+local function Cleanup()
+for _, conn in ipairs(connections) do
+pcall(function() conn:Disconnect() end)
+end
+connections = {}
+end
+
+player.CharacterAdded:Connect(function(newChar)
+Cleanup()
+character = newChar
+hrp = newChar:WaitForChild("HumanoidRootPart")
+humanoid = newChar:WaitForChild("Humanoid")
+end)
+
+player.CharacterRemoving:Connect(Cleanup)
+
+
+local tool = Instance.new("Tool")
+tool.Name = "Draconic Honor"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("MArtist.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local AnimsFolder = asset:WaitForChild("Anims")
+
+local DHonorStartKS = AnimsFolder:WaitForChild("DHonorStart")
+local DHonorKS = AnimsFolder:WaitForChild("DHonor")
+local VHonorKS = AnimsFolder:WaitForChild("VHonor")
+
+local DracoStartKS = AnimsFolder:WaitForChild("DracoStart")
+local DracoRunKS = AnimsFolder:WaitForChild("DracoRun")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+	Cleanup()
+
+	if not character or not character.Parent then return end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not hrp or not humanoid then return end
+
+	local originalSpeed = humanoid.WalkSpeed
+
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+	humanoid.WalkSpeed = 0
+
+	---------------------------------------------------
+	-- SOUND
+	---------------------------------------------------
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("DHonor.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	---------------------------------------------------
+	-- START ANIM
+	---------------------------------------------------
+
+	local startAnim = PlayKeyframeSequence(character, DHonorStartKS, 1)
+
+	---------------------------------------------------
+	-- DRAGON SPAWN (STAYS ALIVE ON HIT)
+	---------------------------------------------------
+
+	local dragon
+	local dragonStartAnim
+	local dragonRunAnim
+
+	do
+		local model = asset:FindFirstChild("DragonHead", true)
+
+		if model then
+			dragon = model:Clone()
+			dragon.Parent = workspace
+
+			local root = dragon:FindFirstChild("RootPart", true)
+			local torso = character:FindFirstChild("HumanoidRootPart")
+
+			if root and torso then
+				root.Anchored = false
+
+				dragon:PivotTo(hrp.CFrame * CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(180), 0))
+
+				local weld = dragon:FindFirstChildWhichIsA("WeldConstraint", true)
+				if weld then
+					weld.Part0 = torso
+					weld.Part1 = root
+				end
+			end
+
+			task.spawn(function()
+				dragonStartAnim = PlayKeyframeSequence(dragon, DracoStartKS, 1)
+				task.wait(2)
+				dragonRunAnim = PlayKeyframeSequence(dragon, DracoRunKS, 1)
+			end)
+		end
+	end
+
+	---------------------------------------------------
+	-- MOVEMENT PHASE (START AFTER 2 SECONDS)
+	---------------------------------------------------
+
+	local moveBV
+	local moveConn
+
+	task.delay(1, function()
+
+		if not hrp then return end
+
+		moveBV = Instance.new("BodyVelocity")
+		moveBV.MaxForce = Vector3.new(1e9, 0, 1e9)
+		moveBV.Parent = hrp
+
+		moveConn = RunService.Heartbeat:Connect(function()
+
+			if not moveBV or not moveBV.Parent then return end
+
+			local cam = workspace.CurrentCamera
+			local look = cam.CFrame.LookVector
+			local flat = Vector3.new(look.X, 0, look.Z)
+
+			if flat.Magnitude > 0 then
+				flat = flat.Unit
+				hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + flat)
+				moveBV.Velocity = flat * 85
+			end
+		end)
+	end)
+
+	---------------------------------------------------
+	-- HIT PHASE (NO DRACOATTACK)
+	---------------------------------------------------
+
+	task.delay(4.5, function()
+
+		startAnim:Stop()
+
+		if moveConn then moveConn:Disconnect() end
+		if moveBV then moveBV:Destroy() end
+
+		---------------------------------------------------
+		-- TARGET CHECK
+		---------------------------------------------------
+
+		local target = nil
+		local closest = math.huge
+
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+
+				local tHRP = p.Character.HumanoidRootPart
+				local dir = (tHRP.Position - hrp.Position)
+
+				local dist = dir.Magnitude
+				local forward = hrp.CFrame.LookVector:Dot(dir.Unit)
+
+				if dist <= 50 and forward > 0.35 then
+					if dist < closest then
+						closest = dist
+						target = p.Character
+					end
+				end
+			end
+		end
+
+		if not target then
+
+			if dragon then
+				dragon:Destroy()
+			end
+
+			if sound then sound:Destroy() end
+
+			humanoid.WalkSpeed = originalSpeed
+
+			if humanoid and not humanoid:FindFirstChild("Animator") then
+				Instance.new("Animator", humanoid)
+			end
+
+			return
+		end
+
+		---------------------------------------------------
+		-- HIT
+		---------------------------------------------------
+
+		target.Archivable = true
+		local clone = target:Clone()
+		target.Archivable = false
+
+		clone.Parent = workspace
+
+		local cHRP = clone:FindFirstChild("HumanoidRootPart")
+
+if cHRP then
+	-- place in front of player
+	cHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(180), 0)
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = hrp
+	weld.Part1 = cHRP
+	weld.Parent = hrp
+end
+
+		local userAnim = PlayKeyframeSequence(character, DHonorKS, 1)
+		local enemyAnim = PlayKeyframeSequence(clone, VHonorKS, 1)
+
+     loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/HonorCam"))()
+
+dragonRunAnim:Stop()
+dragonStartAnim:Stop()
+
+		if dragon then
+			task.delay(9, function()
+				if dragon then
+					dragon:Destroy()
+				end
+			end)
+		end
+
+		---------------------------------------------------
+		-- DASH AFTER 3 SECONDS (FIXED)
+		---------------------------------------------------
+
+		task.delay(5, function()
+
+			local dashBV = Instance.new("BodyVelocity")
+			dashBV.MaxForce = Vector3.new(1e9, 0, 1e9)
+			dashBV.Parent = hrp
+
+			local conn
+			local start = tick()
+
+			conn = RunService.Heartbeat:Connect(function()
+
+				if not dashBV or not dashBV.Parent then return end
+
+				local cam = workspace.CurrentCamera
+				local look = cam.CFrame.LookVector
+				local flat = Vector3.new(look.X, 0, look.Z)
+
+				if flat.Magnitude > 0 then
+					flat = flat.Unit
+					hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + flat)
+					dashBV.Velocity = flat * 100
+				end
+
+				if tick() - start >= 4 then
+					conn:Disconnect()
+					dashBV:Destroy()
+				end
+			end)
+		end)
+        
+       task.spawn(function()
+         task.wait(9)
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/smth/refs/heads/main/HonorCamS"))()
+       end)
+
+		task.delay(userAnim.Length, function()
+
+			userAnim:Stop()
+			userAnim:RestoreAnimator()
+
+			enemyAnim:Stop()
+			enemyAnim:RestoreAnimator()
+
+			if clone then clone:Destroy() end
+
+			humanoid.WalkSpeed = originalSpeed
+
+			if sound then sound:Stop(); sound:Destroy() end
+
+			if humanoid and not humanoid:FindFirstChild("Animator") then
+				Instance.new("Animator", humanoid)
+			end
+		end)
+
+	end)
+end)

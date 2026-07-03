@@ -1,0 +1,114 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local function getNearestEnemy()
+	local nearest, dist = nil, 100
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local d = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+			if d < dist then
+				dist = d
+				nearest = p.Character
+			end
+		end
+	end
+
+	return nearest
+end
+
+local function cloneCharacter(char)
+	char.Archivable = true
+	local c = char:Clone()
+	char.Archivable = false
+	return c
+end
+
+local tool = Instance.new("Tool")
+tool.Name = "Panther Combo"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("MArtist.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local Anims = asset:WaitForChild("Anims")
+local PComboKS = Anims:WaitForChild("PCombo")
+local VComboKS = Anims:WaitForChild("VCombo")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+tool.Activated:Connect(function()
+
+	if not character or not character.Parent then return end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not hrp or not humanoid then return end
+
+	local target = getNearestEnemy()
+	if not target then return end
+
+	-- LOCK SPEED (FIX)
+	humanoid.WalkSpeed = 0
+
+	-- clone victim
+	local victimClone = cloneCharacter(target)
+	victimClone.Parent = workspace
+	victimClone.Name = target.Name .. "_Enes"
+
+	local victimHRP = victimClone:FindFirstChild("HumanoidRootPart")
+
+	if victimHRP then
+		victimHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, -3.3) * CFrame.Angles(0, math.rad(180), 0)
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hrp
+		weld.Part1 = victimHRP
+		weld.Parent = hrp
+	end
+
+	-- sound
+	local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("PCombo.mp3")
+	sound.Volume = 1
+	sound.Parent = workspace
+	sound:Play()
+
+	-- animations
+	local attackerAnim = PlayKeyframeSequence(character, PComboKS, 1)
+	local victimAnim = PlayKeyframeSequence(victimClone, VComboKS, 1)
+
+	-- skip victim intro
+	victimAnim.TimePosition = 0.1
+
+	local function finish()
+		if attackerAnim then
+			attackerAnim:Stop()
+			attackerAnim:RestoreAnimator()
+		end
+
+		if victimAnim then
+			victimAnim:Stop()
+			victimAnim:RestoreAnimator()
+		end
+
+		if victimClone and victimClone.Parent then
+			victimClone:Destroy()
+		end
+
+		if sound then sound:Destroy() end
+
+		-- RESTORE SPEED (FIX)
+		if humanoid then
+			humanoid.WalkSpeed = 16
+		end
+	end
+
+	task.delay(attackerAnim.Length - 0.5, finish)
+end)
