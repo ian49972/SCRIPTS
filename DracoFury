@@ -58,6 +58,8 @@ tool.Activated:Connect(function()
 
 	if not character or not character.Parent then return end
 
+    tool:Destroy()
+
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character:FindFirstChild("Humanoid")
 	if not hrp or not humanoid then return end
