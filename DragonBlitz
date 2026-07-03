@@ -156,10 +156,8 @@ task.spawn(function()
 		return
 	end
 
-	-- Make torso semi-transparent
 	torso.Transparency = 0.6
 
-	-- Clone the RibCage model
 	local ribCage = asset:FindFirstChild("Ribcage", true)
 	if not ribCage then
 		return
@@ -168,19 +166,16 @@ task.spawn(function()
 	ribCage = ribCage:Clone()
 	ribCage.Parent = clone
 
-	-- Unanchor the RibCage mesh
 	local ribMesh = ribCage:FindFirstChild("Ribcage", true)
 	if ribMesh and ribMesh:IsA("MeshPart") then
 		ribMesh.Anchored = false
 	end
 
-	-- Weld it to the torso
 	local weld = ribCage:FindFirstChildWhichIsA("Weld", true)
 	if weld then
 		weld.Part0 = torso
 	end
 
-	-- Wait before the flash effect
 	task.wait(1)
 
 	local originalBrightness = Lighting.Brightness
