@@ -403,9 +403,11 @@ task.delay(6, function()
 			local conquestAnim = PlayKeyframeSequence(mech, ConquestKS, 1)
 			currentAnim = conquestAnim
 
+         local CSound
+
 task.spawn(function()
      task.wait(1)
-        local CSound = Instance.new("Sound")
+       CSound = Instance.new("Sound")
        CSound.SoundId = getcustomasset("Conquest.mp3")
        CSound.Volume = 1
        CSound.Parent = Workspace
@@ -436,7 +438,7 @@ end)
 			if not target then
 				task.wait(1)
 				stopAnim()
-            CSound:Stop()
+                CSound:Stop()
 				humanoid.WalkSpeed = originalSpeed
 				hrp.Anchored = false
 				startMovementHandler()
