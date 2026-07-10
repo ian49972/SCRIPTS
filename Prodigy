@@ -1,0 +1,603 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local head = character:WaitForChild("Head")
+
+local tool = Instance.new("Tool")
+tool.Name = "Iron Giant"
+tool.RequiresHandle = false
+tool.Parent = player:WaitForChild("Backpack")
+
+local asset = game:GetObjects(getcustomasset("Prodigy.rbxmx"))[1]
+asset.Parent = game.ReplicatedStorage
+
+local assetTwo = game:GetObjects(getcustomasset("LOOLKIDDO IS A SKID.rbxmx"))[1]
+assetTwo.Parent = game.ReplicatedStorage
+
+local assetThree = game:GetObjects(getcustomasset("ProdigyThree.rbxmx"))[1]
+assetThree.Parent = game.ReplicatedStorage
+
+local Anims = asset:WaitForChild("Anims")
+
+local TakeOffKS = Anims:WaitForChild("TakeOff")
+local AssembleKS = Anims:WaitForChild("Assemble")
+
+local IdleKS = Anims:WaitForChild("Idle")
+local WalkKS = Anims:WaitForChild("Walk")
+
+local PhotonEdgeKS = assetTwo:WaitForChild("PhotonEdge")
+local PhotonDiveKS = assetTwo:WaitForChild("PhotonDive")
+local MissilesKS = assetTwo:WaitForChild("Missiles")
+local EdgeVictimKS = assetThree:WaitForChild("EdgeVictim")
+local ConquestKS = assetThree:WaitForChild("Conquest")
+local ConquestVictimKS = assetThree:WaitForChild("ConquestVictim")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local currentAnim
+local movementConnection = nil
+
+local function stopAnim()
+	if currentAnim then
+		pcall(function()
+			currentAnim:Stop()
+			currentAnim:RestoreAnimator()
+		end)
+	end
+	currentAnim = nil
+end
+
+task.spawn(function()
+
+	local mechTemplate = asset:FindFirstChild("Mech", true)
+	if mechTemplate then
+		local m = mechTemplate:Clone()
+		m.Parent = workspace
+
+		PlayKeyframeSequence(m, IdleKS, 0.01)
+		PlayKeyframeSequence(m, WalkKS, 0.01)
+		PlayKeyframeSequence(m, AssembleKS, 0.01)
+		PlayKeyframeSequence(m, PhotonEdgeKS, 0.01)
+		PlayKeyframeSequence(m, PhotonDiveKS, 0.01)
+		PlayKeyframeSequence(m, MissilesKS, 0.01)
+		PlayKeyframeSequence(m, ConquestKS, 0.01)
+
+		task.wait(0.2)
+		m:Destroy()
+	end
+
+	local jetTemplate = asset:FindFirstChild("jet", true)
+	if jetTemplate then
+		local j = jetTemplate:Clone()
+		j.Parent = workspace
+
+		task.wait(0.2)
+		j:Destroy()
+	end
+end)
+
+tool.Activated:Connect(function()
+
+	if not character or not character.Parent then return end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local torso = character:FindFirstChild("Torso") or hrp
+	local head = character:FindFirstChild("Head")
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not hrp or not humanoid then return end
+
+	local camera = workspace.CurrentCamera
+
+	local originalSpeed = humanoid.WalkSpeed
+	humanoid.WalkSpeed = 0
+
+	local animator = humanoid:FindFirstChild("Animator")
+	if animator then animator:Destroy() end
+
+	stopAnim()
+
+	local jet = asset:FindFirstChild("jet", true):Clone()
+	local mech = asset:FindFirstChild("Mech", true):Clone()
+
+	jet.Parent = workspace
+	mech.Parent = workspace
+
+	local jetRoot = jet:FindFirstChild("Root", true)
+
+local mechRoot = mech:FindFirstChild("RootPart", true)
+
+local sound = Instance.new("Sound")
+	sound.SoundId = getcustomasset("ProdigyTheme.mp3")
+	sound.Volume = 0.5
+	sound.Looped = true
+	sound.Parent = mechRoot
+	sound:Play()
+
+	if jetRoot then
+		jetRoot.Anchored = false
+		jet:PivotTo(torso.CFrame * CFrame.new(0, 6, -10))
+	end
+
+	if mechRoot then
+		mechRoot.Anchored = false
+		mech:PivotTo(hrp.CFrame * CFrame.new(0, 0, -6))
+	end
+
+
+	for _, w in ipairs(jet:GetDescendants()) do
+		if w:IsA("Weld") and w.Parent and w.Parent.Name == "Root" then
+			w.Part1 = torso
+		end
+	end
+
+	for _, w in ipairs(mech:GetDescendants()) do
+		if w:IsA("Weld") then
+			w.Part0 = hrp
+		end
+	end
+
+
+	local takeOff = PlayKeyframeSequence(character, TakeOffKS, 1)
+	currentAnim = takeOff
+
+	local mechAnim = PlayKeyframeSequence(mech, AssembleKS, 1)
+
+	camera.CameraSubject = head
+
+task.delay(6, function()
+
+			for _, v in ipairs(character:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Transparency = 1
+					v.CanCollide = false
+				end
+			end
+
+			camera.CameraSubject = mechRoot
+
+			if jet then jet:Destroy() end
+		end)
+
+	task.delay(takeOff.Length - 1, function()
+
+		pcall(function()
+			jetAnim:Stop()
+		end)
+
+		pcall(function()
+			mechAnim:Stop()
+		end)
+
+		stopAnim()
+
+		local state = nil
+
+		currentAnim = PlayKeyframeSequence(mech, IdleKS, 1)
+		currentAnim.Looped = true
+		state = "idle"
+
+		local function startMovementHandler()
+			if movementConnection then movementConnection:Disconnect() end
+			movementConnection = RunService.Heartbeat:Connect(function()
+				if not mech or not mech.Parent then 
+					if movementConnection then movementConnection:Disconnect() end
+					return 
+				end
+
+				local moving = humanoid.MoveDirection.Magnitude > 0
+
+				if moving and state ~= "walk" then
+					stopAnim()
+					currentAnim = PlayKeyframeSequence(mech, WalkKS, 1)
+					currentAnim.Looped = true
+					state = "walk"
+
+				elseif not moving and state ~= "idle" then
+					stopAnim()
+					currentAnim = PlayKeyframeSequence(mech, IdleKS, 1)
+					currentAnim.Looped = true
+					state = "idle"
+				end
+			end)
+		end
+
+		startMovementHandler()
+
+		humanoid.WalkSpeed = originalSpeed
+
+		if humanoid and not humanoid:FindFirstChild("Animator") then
+			Instance.new("Animator", humanoid)
+		end
+
+		local photonTool = Instance.new("Tool")
+		photonTool.Name = "Photon Edge"
+		photonTool.RequiresHandle = false
+		photonTool.Parent = player:WaitForChild("Backpack")
+
+		photonTool.Activated:Connect(function()
+			if not mech or not mech.Parent then photonTool:Destroy() return end
+
+			if movementConnection then movementConnection:Disconnect() end
+			stopAnim()
+
+			local originalSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = 0
+
+			local sword = mech:FindFirstChild("Sword", true)
+			if sword and (sword:IsA("BasePart") or sword:IsA("MeshPart")) then
+				sword.Transparency = 0
+			end
+
+			local photonAnim = PlayKeyframeSequence(mech, PhotonEdgeKS, 1)
+			currentAnim = photonAnim
+
+        local PESound = Instance.new("Sound")
+       PESound.SoundId = getcustomasset("PhotonEdge.mp3")
+       PESound.Volume = 1
+       PESound.Parent = Workspace
+       PESound:Play()
+
+			task.wait(2)
+
+			local target = nil
+			local minDist = 35
+			local lookDir = hrp.CFrame.LookVector
+
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character then
+					local tHRP = plr.Character:FindFirstChild("HumanoidRootPart")
+					if tHRP then
+						local vec = (tHRP.Position - hrp.Position)
+						local dist = vec.Magnitude
+						if dist < minDist and lookDir:Dot(vec.Unit) > 0.6 then
+							minDist = dist
+							target = plr
+						end
+					end
+				end
+			end
+
+			if not target then
+				stopAnim()
+            PESound:Stop()
+				humanoid.WalkSpeed = originalSpeed
+				if sword and (sword:IsA("BasePart") or sword:IsA("MeshPart")) then sword.Transparency = 1 end
+				startMovementHandler()
+				return
+			end
+
+			local victimChar = target.Character
+			if victimChar then
+				victimChar.Archivable = true
+				local victimClone = victimChar:Clone()
+				victimClone.Parent = workspace
+				victimClone.Name = target.Name .. "_PantherClone"
+
+				local victimHRP = victimClone:FindFirstChild("HumanoidRootPart")
+				if victimHRP then
+					victimHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, -8) * CFrame.Angles(0, math.rad(180), 0)
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = hrp
+					weld.Part1 = victimHRP
+					weld.Parent = hrp
+				end
+
+				local victimAnim = PlayKeyframeSequence(victimClone, EdgeVictimKS, 1)
+
+				task.delay(EdgeVictimKS.Length or 5, function()
+					if victimClone and victimClone.Parent then victimClone:Destroy() end
+				end)
+			end
+
+			task.wait(photonAnim.Length - 2)
+
+			stopAnim()
+			humanoid.WalkSpeed = originalSpeed
+			if sword and (sword:IsA("BasePart") or sword:IsA("MeshPart")) then sword.Transparency = 1 end
+			startMovementHandler()
+		end)
+
+		local diveTool = Instance.new("Tool")
+		diveTool.Name = "Photon Dive"
+		diveTool.RequiresHandle = false
+		diveTool.Parent = player:WaitForChild("Backpack")
+
+		diveTool.Activated:Connect(function()
+			if not mech or not mech.Parent then diveTool:Destroy() return end
+
+			if movementConnection then movementConnection:Disconnect() end
+			stopAnim()
+
+			local originalSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = 0
+
+			local sword = mech:FindFirstChild("Sword", true)
+			if sword and (sword:IsA("BasePart") or sword:IsA("MeshPart")) then
+				sword.Transparency = 0
+			end
+
+			local diveAnim = PlayKeyframeSequence(mech, PhotonDiveKS, 1)
+			currentAnim = diveAnim
+
+           local PSound = Instance.new("Sound")
+          PSound.SoundId = getcustomasset("PhotonDive.mp3")
+          PSound.Volume = 1
+          PSound.Parent = Workspace
+          PSound:Play()
+
+    task.wait(1.7)
+			local originalHip = humanoid.HipHeight
+			local tweenUp = TweenService:Create(humanoid, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {HipHeight = 270})
+			tweenUp:Play()
+			tweenUp.Completed:Wait()
+
+			task.delay(2, function()
+				local tweenDown = TweenService:Create(humanoid, TweenInfo.new(0.7, Enum.EasingStyle.Quad), {HipHeight = 0})
+				tweenDown:Play()
+			end)
+
+			task.wait(diveAnim.Length)
+
+			stopAnim()
+			humanoid.WalkSpeed = originalSpeed
+			if sword and (sword:IsA("BasePart") or sword:IsA("MeshPart")) then sword.Transparency = 1 end
+			humanoid.HipHeight = originalHip
+			startMovementHandler()
+		end)
+
+		local missilesTool = Instance.new("Tool")
+		missilesTool.Name = "Missiles"
+		missilesTool.RequiresHandle = false
+		missilesTool.Parent = player:WaitForChild("Backpack")
+
+		missilesTool.Activated:Connect(function()
+			if not mech or not mech.Parent then missilesTool:Destroy() return end
+
+			if movementConnection then movementConnection:Disconnect() end
+			stopAnim()
+
+			local originalSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = 0
+
+			local missileAnim = PlayKeyframeSequence(mech, MissilesKS, 1)
+			currentAnim = missileAnim
+
+         local MSound = Instance.new("Sound")
+        MSound.SoundId = getcustomasset("Missiles.mp3")
+        MSound.Volume = 1
+        MSound.Parent = Workspace
+        MSound:Play()
+
+			task.wait(missileAnim.Length)
+
+			stopAnim()
+			humanoid.WalkSpeed = originalSpeed
+			startMovementHandler()
+		end)
+
+		local conquestTool = Instance.new("Tool")
+		conquestTool.Name = "Conquest"
+		conquestTool.RequiresHandle = false
+		conquestTool.Parent = player:WaitForChild("Backpack")
+
+		conquestTool.Activated:Connect(function()
+			if not mech or not mech.Parent then 
+				print("No mech found")
+				return 
+			end
+
+			if movementConnection then movementConnection:Disconnect() end
+			stopAnim()
+
+			local originalSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = 0
+			hrp.Anchored = true
+
+			local conquestAnim = PlayKeyframeSequence(mech, ConquestKS, 1)
+			currentAnim = conquestAnim
+
+task.spawn(function()
+     task.wait(1)
+        local CSound = Instance.new("Sound")
+       CSound.SoundId = getcustomasset("Conquest.mp3")
+       CSound.Volume = 1
+       CSound.Parent = Workspace
+       CSound:Play()
+end)
+ 
+			task.wait(1.2)
+
+			local target = nil
+			local minDist = 50
+			local lookDir = hrp.CFrame.LookVector
+
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character then
+					local tHRP = plr.Character:FindFirstChild("HumanoidRootPart")
+					if tHRP then
+						local vec = (tHRP.Position - hrp.Position)
+						local dist = vec.Magnitude
+						if dist < minDist and lookDir:Dot(vec.Unit) > 0.6 then
+							minDist = dist
+							target = plr
+							break
+						end
+					end
+				end
+			end
+
+			if not target then
+				task.wait(1)
+				stopAnim()
+            CSound:Stop()
+				humanoid.WalkSpeed = originalSpeed
+				hrp.Anchored = false
+				startMovementHandler()
+				return
+			end
+
+			local victimChar = target.Character
+			local victimClone = nil
+			if victimChar then
+				victimChar.Archivable = true
+				victimClone = victimChar:Clone()
+				victimClone.Parent = workspace
+				victimClone.Name = target.Name .. "_ConquestClone"
+
+				local victimHRP = victimClone:FindFirstChild("HumanoidRootPart")
+				if victimHRP then
+					victimHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(180), 0)
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = hrp
+					weld.Part1 = victimHRP
+					weld.Parent = hrp
+				end
+
+				local victimAnim = PlayKeyframeSequence(victimClone, ConquestVictimKS, 1)
+			end
+
+			task.wait(1)
+
+			local cityTemplate = assetThree:FindFirstChild("City", true) or assetThree:FindFirstChild("city", true)
+local city = nil
+
+if cityTemplate then
+	city = cityTemplate:Clone()
+	city.Parent = workspace
+	print("Hell Yeah")
+else
+	print("Test")
+end
+
+			local originalCamType = camera.CameraType
+			local originalFOV = camera.FieldOfView
+			local originalCameraSubject = camera.CameraSubject
+			local originalOffset = humanoid.CameraOffset
+			local originalPos = hrp.CFrame
+
+			local camConn
+
+			local cam1 = assetTwo:FindFirstChild("CamRigWithLetterBoxTwo", true)
+			print("Cam1 found:", cam1 ~= nil)
+			if cam1 then
+				cam1 = cam1:Clone()
+				cam1.Parent = workspace
+
+				local root1 = cam1:FindFirstChild("RootPart")
+				if root1 and root1:IsA("BasePart") then root1.Anchored = false end
+
+				local weld1 = cam1:FindFirstChildWhichIsA("Weld") or cam1:FindFirstChildWhichIsA("Motor6D")
+				if weld1 then weld1.Part0 = mechRoot end
+
+				local camPart = cam1:FindFirstChild("camera", true)
+				if camPart then
+					camera.CameraType = Enum.CameraType.Scriptable
+					camera.CameraSubject = camPart
+					camera.FieldOfView = 70
+					humanoid.CameraOffset = Vector3.new(0,0,0)
+					if camConn then camConn:Disconnect() end
+					camConn = RunService.RenderStepped:Connect(function() camera.CFrame = camPart.CFrame end)
+				end
+
+				local camAnim1 = PlayKeyframeSequence(cam1, assetTwo:WaitForChild("CamOne"), 1)
+				task.wait(camAnim1.Length or 4)
+				if cam1 and cam1.Parent then cam1:Destroy() end
+			end
+
+			local cam2 = assetTwo:FindFirstChild("CamRigWithLetterBoxMech", true)
+			print("Cam2 found:", cam2 ~= nil)
+			if cam2 then
+				cam2 = cam2:Clone()
+				cam2.Parent = workspace
+
+				local root2 = cam2:FindFirstChild("RootPart")
+				if root2 and root2:IsA("BasePart") then root2.Anchored = false end
+
+				local weld2 = cam2:FindFirstChildWhichIsA("Weld") or cam2:FindFirstChildWhichIsA("Motor6D")
+				if weld2 then weld2.Part0 = mechRoot end
+
+				local camPart = cam2:FindFirstChild("camera", true)
+				if camPart then
+					if camConn then camConn:Disconnect() end
+					camConn = RunService.RenderStepped:Connect(function() camera.CFrame = camPart.CFrame end)
+				end
+
+				local cityModel = workspace:FindFirstChild("City") or workspace:FindFirstChild("city")
+if cityModel then
+    local realB = cityModel:FindFirstChild("RealBuildings")
+    if realB then
+        local b1 = realB:FindFirstChild("building 1")
+        if b1 then
+            local rp = b1:FindFirstChild("RootPart")
+            if rp then
+                hrp.CFrame = rp.CFrame * CFrame.new(0, 3, 0)
+                print("Teleported TO building RootPart")
+            end
+        end
+    end
+end
+
+				local camAnim2 = PlayKeyframeSequence(cam2, assetTwo:WaitForChild("CamTwo"), 1)
+				task.wait(camAnim2.Length or 5)
+				if cam2 and cam2.Parent then cam2:Destroy() end
+			end
+
+			local cam3 = assetTwo:FindFirstChild("CamRigWithLetterBox", true)
+			print("Cam3 found:", cam3 ~= nil)
+			if cam3 then
+				cam3 = cam3:Clone()
+				cam3.Parent = workspace
+
+				local root3 = cam3:FindFirstChild("RootPart")
+				if root3 and root3:IsA("BasePart") then root3.Anchored = false end
+
+				local weld3 = cam3:FindFirstChildWhichIsA("Weld") or cam3:FindFirstChildWhichIsA("Motor6D")
+				if weld3 then weld3.Part0 = hrp end
+
+				local camPart = cam3:FindFirstChild("camera", true)
+				if camPart then
+					if camConn then camConn:Disconnect() end
+					camConn = RunService.RenderStepped:Connect(function() camera.CFrame = camPart.CFrame end)
+				end
+
+				hrp.CFrame = originalPos
+				print("Teleported BACK to original position")
+
+				local camAnim3 = PlayKeyframeSequence(cam3, assetTwo:WaitForChild("CamThree"), 1)
+				task.wait(camAnim3.Length)
+				if cam3 and cam3.Parent then cam3:Destroy() end
+			end
+
+			if camConn then camConn:Disconnect() end
+
+			camera.CameraType = originalCamType
+			camera.FieldOfView = originalFOV
+			camera.CameraSubject = mechRoot
+			humanoid.CameraOffset = originalOffset
+
+			if victimClone and victimClone.Parent then victimClone:Destroy() end
+
+			task.wait(0.2)
+			stopAnim()
+			humanoid.WalkSpeed = originalSpeed
+			hrp.Anchored = false
+			startMovementHandler()
+
+    if city and city.Parent then
+	city:Destroy()
+end
+		end)
+
+	end)
+
+	task.delay(0.1, function()
+		tool:Destroy()
+	end)
+end)
