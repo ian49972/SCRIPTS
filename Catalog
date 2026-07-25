@@ -400,11 +400,6 @@ if AlreadyEquipped() then
 	return
 end
 
- print("ID:", item.Id)
-print("TYPE:", item.AssetType)
-print("NAME:", item.Name)
-print(item.AssetType, typeof(item.AssetType))
-
 if item.AssetType == "Shirt" then
 
 	for _,v in ipairs(character:GetChildren()) do
