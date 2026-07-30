@@ -1,0 +1,291 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local PathfindingService = game:GetService("PathfindingService")
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ian49972/Animator/refs/heads/main/RobAnimator"))()
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local asset = game:GetObjects(getcustomasset("Entitys.rbxmx"))[1]
+asset.Parent = workspace
+
+local npc = asset:WaitForChild("Clark")
+local humanoid = npc:WaitForChild("Humanoid")
+local root = npc:WaitForChild("HumanoidRootPart")
+
+root.Anchored = false
+
+npc:PivotTo(hrp.CFrame * CFrame.new(0, 0, -30))
+
+local walkAnim = asset:WaitForChild("Walk")
+local runAnim = asset:WaitForChild("Run")
+
+local currentAnim
+
+local walkAnim = asset:WaitForChild("Walk")
+local runAnim = asset:WaitForChild("Run")
+
+local killKF = asset:WaitForChild("Kill")
+local victimKF = asset:WaitForChild("Victim")
+
+local running = false
+local currentAnim = PlayKeyframeSequence(npc, walkAnim, 1)
+local killAnim
+local victimAnim
+local caught = false
+local playerWeld
+
+local walkSound = Instance.new("Sound")
+walkSound.SoundId = getcustomasset("ClarkWalk.mp3")
+walkSound.Volume = 1
+walkSound.Looped = true
+walkSound.PlaybackSpeed = 1
+walkSound.Parent = workspace
+walkSound:Play()
+
+local function IsPathBlocked(startPos, endPos)
+	local direction = (endPos - startPos).Unit
+	local distance = (endPos - startPos).Magnitude + 4
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {npc}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = true
+
+	return workspace:Raycast(
+		startPos + Vector3.new(0,3,0),
+		direction * distance,
+		params
+	) ~= nil
+end
+
+local SimplePath = {}
+SimplePath.__index = SimplePath
+ 
+SimplePath.StatusType = { Idle = "Idle"; Active = "Active"; }
+SimplePath.ErrorType = { LimitReached = "LimitReached"; TargetUnreachable = "TargetUnreachable"; ComputationError = "ComputationError"; AgentStuck = "AgentStuck"; }
+ 
+function SimplePath.new(agent)
+	local self = setmetatable({
+		_settings = {TIME_VARIANCE = 0.07; COMPARISON_CHECKS = 1; JUMP_WHEN_STUCK = true},
+		_events = {
+			Reached = Instance.new("BindableEvent"),
+			WaypointReached = Instance.new("BindableEvent"),
+			Blocked = Instance.new("BindableEvent"),
+			Error = Instance.new("BindableEvent"),
+			Stopped = Instance.new("BindableEvent"),
+		},
+		_agent = agent,
+		_humanoid = agent:FindFirstChildOfClass("Humanoid"),
+		_path = PathfindingService:CreatePath(),
+		_status = SimplePath.StatusType.Idle,
+		_t = 0,
+	}, SimplePath)
+	return self
+end
+ 
+function SimplePath:Stop()
+	if self._status == SimplePath.StatusType.Idle then return end
+	if self._moveConnection then self._moveConnection:Disconnect() end
+	self._status = SimplePath.StatusType.Idle
+	self._events.Stopped:Fire(self._agent)
+end
+ 
+function SimplePath:Run(target)
+	if not (target and (typeof(target) == "Vector3" or target:IsA("BasePart"))) then return false end
+ 
+	if os.clock() - self._t <= self._settings.TIME_VARIANCE and self._humanoid then
+		task.wait(os.clock() - self._t)
+		self._events.Error:Fire(SimplePath.ErrorType.LimitReached)
+		return false
+	end
+	self._t = os.clock()
+ 
+	local success = pcall(function()
+		self._path:ComputeAsync(self._agent.PrimaryPart.Position, typeof(target) == "Vector3" and target or target.Position)
+	end)
+ 
+	if not success or self._path.Status == Enum.PathStatus.NoPath or #self._path:GetWaypoints() < 2 then
+		self._events.Error:Fire(SimplePath.ErrorType.ComputationError)
+		return false
+	end
+ 
+	self._status = SimplePath.StatusType.Active
+	self._waypoints = self._path:GetWaypoints()
+	self._currentWaypoint = 2
+ 
+	if self._humanoid then
+		if self._moveConnection then self._moveConnection:Disconnect() end
+		self._moveConnection = self._humanoid.MoveToFinished:Connect(function(reached)
+			if reached and self._currentWaypoint + 1 <= #self._waypoints then
+				self._currentWaypoint += 1
+				self._humanoid:MoveTo(self._waypoints[self._currentWaypoint].Position)
+			elseif reached then
+				if self._moveConnection then self._moveConnection:Disconnect() end
+				self._status = SimplePath.StatusType.Idle
+				self._events.Reached:Fire(self._agent, self._waypoints[self._currentWaypoint])
+			else
+				if self._moveConnection then self._moveConnection:Disconnect() end
+				self._status = SimplePath.StatusType.Idle
+				self._events.Error:Fire(SimplePath.ErrorType.TargetUnreachable)
+			end
+		end)
+		self._humanoid:MoveTo(self._waypoints[self._currentWaypoint].Position)
+	end
+	return true
+end
+
+local simplePath = SimplePath.new(npc)
+
+local function CatchPlayer()
+	if caught then return end
+	caught = true
+  walkSound:Stop()
+
+	if simplePath.Status == SimplePath.StatusType.Active then
+		simplePath:Stop()
+	end
+
+	humanoid:MoveTo(root.Position)
+
+	if currentAnim then
+		currentAnim:Stop()
+		currentAnim = nil
+	end
+
+	local character = player.Character
+	if not character then return end
+
+	local playerHRP = character:FindFirstChild("HumanoidRootPart")
+	local playerHumanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if not playerHRP or not playerHumanoid then return end
+
+	playerHRP.CFrame =
+		root.CFrame *
+		CFrame.new(0,-4, 0) *
+		CFrame.Angles(0,math.rad(180),0)
+
+	playerWeld = Instance.new("WeldConstraint")
+	playerWeld.Part0 = root
+	playerWeld.Part1 = playerHRP
+	playerWeld.Parent = root
+
+	killAnim = PlayKeyframeSequence(npc, killKF, 1)
+	victimAnim = PlayKeyframeSequence(character, victimKF, 1)
+
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("ClarkKill.mp3")
+sound.Volume = 1
+sound.Parent = workspace
+sound:Play()
+
+sound.Ended:Connect(function()
+	sound:Destroy()
+end)
+
+playerHumanoid.WalkSpeed = 0
+
+	task.wait(killAnim.Length)
+
+	if playerWeld then
+		playerWeld:Destroy()
+		playerWeld = nil
+	end
+
+	if playerHumanoid then
+		playerHumanoid.Health = 0
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	if not character.Parent then
+		return
+	end
+
+	local distance = (hrp.Position - root.Position).Magnitude
+
+if distance <= 10 then
+	CatchPlayer()
+	return
+end
+
+if distance <= 40 then
+	humanoid.WalkSpeed = 13
+  walkSound.PlaybackSpeed = 1.2
+
+	if not running then
+		running = true
+		currentAnim:Stop()
+		currentAnim = PlayKeyframeSequence(npc, runAnim, 1)
+	end
+else
+	humanoid.WalkSpeed = 4
+  walkSound.PlaybackSpeed = 1
+
+	if running then
+		running = false
+		currentAnim:Stop()
+		currentAnim = PlayKeyframeSequence(npc, walkAnim, 1)
+	end
+end
+
+local blocked = IsPathBlocked(root.Position, hrp.Position)
+
+if blocked then
+	simplePath:Run(hrp.Position)
+else
+	if simplePath.Status == SimplePath.StatusType.Active then
+		simplePath:Stop()
+	end
+
+	humanoid:MoveTo(hrp.Position)
+end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+
+	task.wait(1)
+
+	caught = false
+
+	if playerWeld then
+		playerWeld:Destroy()
+		playerWeld = nil
+	end
+
+	if killAnim then
+		killAnim:Stop()
+		killAnim = nil
+	end
+
+	if victimAnim then
+		victimAnim:Stop()
+		victimAnim = nil
+	end
+
+	if simplePath.Status == SimplePath.StatusType.Active then
+		simplePath:Stop()
+	end
+
+	running = false
+
+	if currentAnim then
+		currentAnim:Stop()
+	end
+
+	currentAnim = PlayKeyframeSequence(npc, walkAnim, 1)
+
+	humanoid.WalkSpeed = 4
+
+walkSound.Parent = root
+walkSound.PlaybackSpeed = 1
+
+if not walkSound.IsPlaying then
+	walkSound:Play()
+end
+end)
