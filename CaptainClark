@@ -139,6 +139,9 @@ end
 
 local simplePath = SimplePath.new(npc)
 
+local lastPosition = root.Position
+local stuckTime = 0
+
 local function CatchPlayer()
 	if caught then return end
 	caught = true
@@ -200,12 +203,40 @@ playerHumanoid.WalkSpeed = 0
 	end
 end
 
+local function ResetAI()
+	if simplePath.Status == SimplePath.StatusType.Active then
+		simplePath:Stop()
+	end
+
+	humanoid:MoveTo(root.Position)
+
+	task.wait(0.1)
+
+	lastPosition = root.Position
+	stuckTime = 0
+end
+
 RunService.Heartbeat:Connect(function()
 	if not character.Parent then
 		return
 	end
 
 	local distance = (hrp.Position - root.Position).Magnitude
+
+if not caught then
+	local moved = (root.Position - lastPosition).Magnitude
+
+	if moved < 0.2 then
+		stuckTime += RunService.Heartbeat:Wait()
+	else
+		stuckTime = 0
+		lastPosition = root.Position
+	end
+
+	if stuckTime >= 3 then
+		ResetAI()
+	end
+end
 
 if distance <= 10 then
 	CatchPlayer()
