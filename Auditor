@@ -1,0 +1,225 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Player = Players.LocalPlayer
+
+local CurrentAsset
+local CurrentConnection
+local CurrentDeathConnection
+
+local function Cleanup()
+	if CurrentConnection then
+		CurrentConnection:Disconnect()
+		CurrentConnection = nil
+	end
+
+	if CurrentDeathConnection then
+		CurrentDeathConnection:Disconnect()
+		CurrentDeathConnection = nil
+	end
+
+	if CurrentAsset then
+		CurrentAsset:Destroy()
+		CurrentAsset = nil
+	end
+end
+
+local function GetPart(object)
+	if not object then
+		return nil
+	end
+
+	if object:IsA("BasePart") then
+		return object
+	end
+
+	return object:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function GetWeld(object)
+	if not object then
+		return nil
+	end
+
+	return object:FindFirstChild("Weld", true)
+end
+
+local function SetupCharacter(Character)
+	Cleanup()
+
+	task.wait(2)
+
+	if not Character or not Character.Parent then
+		return
+	end
+
+	local Head = Character:FindFirstChild("Head")
+	local LeftArm = Character:FindFirstChild("Left Arm")
+	local RightArm = Character:FindFirstChild("Right Arm")
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+	if not Head or not LeftArm or not RightArm or not Humanoid then
+		return
+	end
+
+	for _, object in ipairs(Character:GetChildren()) do
+		if object:IsA("Shirt") or object:IsA("Pants") or object:IsA("ShirtGraphic") then
+			object:Destroy()
+		end
+	end
+
+	for _, object in ipairs(Character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			object.Color = Color3.new(0, 0, 0)
+			object.Material = Enum.Material.SmoothPlastic
+		elseif object:IsA("Decal") or object:IsA("Texture") then
+			if object.Parent:IsA("Accessory") then
+				object.Color3 = Color3.new(0, 0, 0)
+			end
+		end
+	end
+
+	for _, object in ipairs(Character:GetChildren()) do
+		if object:IsA("Accessory") then
+			for _, descendant in ipairs(object:GetDescendants()) do
+				if descendant:IsA("BasePart") then
+					descendant.Color = Color3.new(0, 0, 0)
+					descendant.Material = Enum.Material.SmoothPlastic
+				elseif descendant:IsA("SpecialMesh") then
+					descendant.TextureId = ""
+					descendant.VertexColor = Vector3.new(0, 0, 0)
+				elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+					descendant.Color3 = Color3.new(0, 0, 0)
+				end
+			end
+		end
+	end
+
+	local OldHighlight = Character:FindFirstChild("GlitchHighlight")
+
+	if OldHighlight then
+		OldHighlight:Destroy()
+	end
+
+	local CharacterHighlight = Instance.new("Highlight")
+	CharacterHighlight.Name = "GlitchHighlight"
+	CharacterHighlight.FillColor = Color3.fromRGB(0, 255, 255)
+	CharacterHighlight.FillTransparency = 13
+	CharacterHighlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+	CharacterHighlight.OutlineTransparency = 0
+	CharacterHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	CharacterHighlight.Adornee = Character
+	CharacterHighlight.Parent = Character
+
+	local asset = game:GetObjects(getcustomasset("Auditor.rbxmx"))[1]
+
+	if not asset or not Character.Parent then
+		return
+	end
+
+	CurrentAsset = asset
+	asset.Parent = workspace
+
+	local Halo = asset:FindFirstChild("Halo", true)
+	local Eyes = asset:FindFirstChild("Eyes", true)
+
+	local FireParts = {}
+
+	for _, object in ipairs(asset:GetDescendants()) do
+		if object.Name == "FirePart" then
+			table.insert(FireParts, object)
+		end
+	end
+
+	if Eyes then
+		local EyesPart = GetPart(Eyes)
+		local EyesWeld = GetWeld(Eyes)
+
+		if EyesPart and EyesWeld and EyesWeld:IsA("Motor6D") then
+			EyesWeld.Part0 = Head
+			EyesWeld.Part1 = EyesPart
+			EyesWeld.C0 = Head.CFrame:ToObjectSpace(EyesPart.CFrame)
+			EyesWeld.C1 = CFrame.new()
+		end
+	end
+
+	if FireParts[1] then
+		local LeftFirePart = GetPart(FireParts[1])
+		local LeftFireWeld = GetWeld(FireParts[1])
+
+		if LeftFirePart and LeftFireWeld and LeftFireWeld:IsA("Motor6D") then
+			LeftFireWeld.Part0 = LeftArm
+			LeftFireWeld.Part1 = LeftFirePart
+			LeftFireWeld.C0 = LeftArm.CFrame:ToObjectSpace(LeftFirePart.CFrame)
+			LeftFireWeld.C1 = CFrame.new()
+		end
+	end
+
+	if FireParts[2] then
+		local RightFirePart = GetPart(FireParts[2])
+		local RightFireWeld = GetWeld(FireParts[2])
+
+		if RightFirePart and RightFireWeld and RightFireWeld:IsA("Motor6D") then
+			RightFireWeld.Part0 = RightArm
+			RightFireWeld.Part1 = RightFirePart
+			RightFireWeld.C0 = RightArm.CFrame:ToObjectSpace(RightFirePart.CFrame)
+			RightFireWeld.C1 = CFrame.new()
+		end
+	end
+
+	local HaloPart = GetPart(Halo)
+
+	if HaloPart then
+		HaloPart.Anchored = true
+		HaloPart.CanCollide = false
+
+		local OldHaloHighlight = Halo:FindFirstChild("HaloOutline")
+
+		if OldHaloHighlight then
+			OldHaloHighlight:Destroy()
+		end
+
+		local HaloHighlight = Instance.new("Highlight")
+		HaloHighlight.Name = "HaloOutline"
+		HaloHighlight.FillTransparency = 1
+		HaloHighlight.OutlineColor = Color3.fromRGB(0, 0, 0)
+		HaloHighlight.OutlineTransparency = 0
+		HaloHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		HaloHighlight.Adornee = Halo
+		HaloHighlight.Parent = Halo
+
+		local HaloOffset = CFrame.new(0, 0.8, 0)
+		local FollowSpeed = 10
+
+		CurrentConnection = RunService.RenderStepped:Connect(function(deltaTime)
+			if not Character.Parent or not HaloPart.Parent then
+				if CurrentConnection then
+					CurrentConnection:Disconnect()
+					CurrentConnection = nil
+				end
+				return
+			end
+
+			local TargetCFrame = Head.CFrame * HaloOffset
+			local Alpha = math.clamp(deltaTime * FollowSpeed, 0, 1)
+
+			HaloPart.CFrame = HaloPart.CFrame:Lerp(TargetCFrame, Alpha)
+		end)
+	end
+
+	CurrentDeathConnection = Humanoid.Died:Connect(function()
+		Cleanup()
+	end)
+end
+
+Player.CharacterAdded:Connect(function(Character)
+	task.spawn(function()
+		SetupCharacter(Character)
+	end)
+end)
+
+if Player.Character then
+	task.spawn(function()
+		SetupCharacter(Player.Character)
+	end)
+end
